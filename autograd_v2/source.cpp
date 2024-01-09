@@ -202,8 +202,8 @@ void test_05() {
   t.pop_state();
 }
 
-void test_06() {
-  std::cout << "\ntest_06" << std::endl;
+void test_06_01() {
+  std::cout << "\ntest_06_01" << std::endl;
   using namespace aks;
   tape_t t;
   const variable x = t.new_variable(std::numbers::pi_v<real_t> / 2.0);
@@ -223,6 +223,30 @@ void test_06() {
   }
   AKS_CHECK_PRINT(t.nodes_.size(), t.nodes_.size(), 140178);
   AKS_CHECK_PRINT(t.grads_.size(), t.grads_.size(), 39214);
+  t.pop_state();
+}
+
+void test_06_02() {
+  std::cout << "\ntest_06_01" << std::endl;
+  using namespace aks;
+  tape_t t;
+  const variable x = t.new_variable(std::numbers::pi_v<real_t> / 2.0);
+
+  variable f = cos(x);
+
+  t.push_state();
+  AKS_CHECK_VARIABLE(x, std::numbers::pi_v<real_t> / 2.0);
+  AKS_CHECK_VARIABLE(f, 0);
+  vec_t<real_t> expected = {-1, 0, 1, 0, -1, 0, 1, 0, -1};
+
+  for (int i = 0; i < 9; ++i) {
+    t.zero_grad();
+    backward(f);
+    f = grad(x);
+    AKS_CHECK_VARIABLE(f, expected[i]);
+  }
+  AKS_CHECK_PRINT(t.nodes_.size(), t.nodes_.size(), 183338);
+  AKS_CHECK_PRINT(t.grads_.size(), t.grads_.size(), 51500);
   t.pop_state();
 }
 
@@ -778,7 +802,8 @@ int main() {
   test_09();
   test_08();
   test_07();
-  test_06();
+  test_06_02();
+  test_06_01();
   test_05();
   test_04();
   test_03();

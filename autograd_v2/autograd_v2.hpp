@@ -638,7 +638,8 @@ inline std::string as_dot(variable iv, size_t i, size_t cnt, size_t start_cnt) {
   };
   auto is_unary_op = [](std::string const &x) {
     return x == "neg" || x == "tanh" || x == "relu" || x == "sin" ||
-           x == "cos" || x == "identity" || x == "sqrt";
+           x == "cos" || x == "identity" || x == "sqrt" || x == "log" ||
+           x == "exp";
   };
 
   if (!nd.is_leaf()) {
