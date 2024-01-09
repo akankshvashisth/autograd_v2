@@ -787,9 +787,49 @@ void test_18() {
   t.pop_state();
 }
 
+void test_19() {
+  std::cout << "\ntest_19" << std::endl;
+  using namespace aks;
+
+  auto NR = [](real_t guess, auto f, real_t tolerance = 1e-6) {
+    tape_t tape;
+
+    auto derivative = [&tape](variable fx, variable x) {
+      tape.push_state();
+      tape.zero_grad();
+      backward(fx);
+      variable dfdx = grad(x);
+      double r_dfdx = dfdx.value();
+      tape.pop_state();
+      return r_dfdx;
+    };
+
+    variable x = tape.new_variable(guess);
+    variable fx = f(x);
+
+    while (std::abs(fx.value()) > tolerance) {
+      x = x - fx / derivative(fx, x);
+      fx = f(x);
+      // AKS_PRINT(x);
+      // AKS_PRINT(fx);
+    };
+
+    return x.value();
+  };
+
+  AKS_CHECK_PRINT("nr01", NR(3.0, [](auto x) { return x * x - 4; }), 2.0);
+  AKS_CHECK_PRINT("nr02", NR(3.0, [](auto x) { return x * x - 16; }), 4.0);
+  AKS_CHECK_PRINT("nr03", NR(5.0, [](auto x) { return x * x * x - 27; }), 3.0);
+  AKS_CHECK_PRINT("nr04", NR(3.0, [](auto x) { return (x ^ 4) - 16; }), 2.0);
+  AKS_CHECK_PRINT("nr05", NR(0.2, [](auto x) { return sin(x); }), 0.0);
+  AKS_CHECK_PRINT("nr06", NR(1.2, [](auto x) { return sin(x); }),
+                  std::numbers::pi_v<double>);
+}
+
 } // namespace
 
 int main() {
+  test_19();
   test_18();
   test_17();
   test_16();
