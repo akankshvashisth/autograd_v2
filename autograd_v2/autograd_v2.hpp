@@ -593,6 +593,10 @@ void backward(variable v) {
 
 #pragma endregion
 
+} // namespace aks
+
+namespace aks {
+
 std::ostream &operator<<(std::ostream &o, variable const &vs) {
   o << std::setprecision(15) << "var(" << vs.value() << ";"
     << (vs.n().backwards_.n_ ? vs.n().backwards_.n_ : "null") << ";"
@@ -600,9 +604,6 @@ std::ostream &operator<<(std::ostream &o, variable const &vs) {
   return o;
 }
 
-} // namespace aks
-
-namespace aks {
 template <typename T>
 std::ostream &operator<<(std::ostream &o, vec_t<T> const &vs) {
   o << "[";
