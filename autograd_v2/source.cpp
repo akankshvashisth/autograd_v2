@@ -1269,6 +1269,24 @@ void test_25() {
   AKS_CHECK_PRINT(t.grads_.size(), t.grads_.size(), 0);
 
   // backward(g);
+  // AKS_CHECK_VARIABLE(grad(xs[0]), 15.0);
+
+  variable mx = max(xs);
+  AKS_CHECK_VARIABLE(mx, 5.0);
+
+  AKS_CHECK_PRINT(t.nodes_.size(), t.nodes_.size(), 9);
+  AKS_CHECK_PRINT(t.grads_.size(), t.grads_.size(), 0);
+
+  // backward(mx);
+  // AKS_CHECK_VARIABLE(grad(xs[0]), 0.0);
+
+  variable mn = min(xs);
+  AKS_CHECK_VARIABLE(mn, 2.0);
+
+  AKS_CHECK_PRINT(t.nodes_.size(), t.nodes_.size(), 9);
+  AKS_CHECK_PRINT(t.grads_.size(), t.grads_.size(), 0);
+
+  // backward(mn);
   // AKS_CHECK_VARIABLE(grad(xs[0]), 1.0);
 }
 } // namespace
