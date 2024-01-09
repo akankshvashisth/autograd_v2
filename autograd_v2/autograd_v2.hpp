@@ -119,9 +119,9 @@ private:
 struct node {
   real_t v_ = real_t{};
   back_f backwards_;
-  node *l_ = nullptr, *r_ = nullptr;
+  vec_t<node *> ls_, rs_;
   idx_t idx_ = sntnl_idx;
-  bool is_leaf() const { return l_ == nullptr && r_ == nullptr; }
+  bool is_leaf() const { return ls_.empty() && rs_.empty(); }
 };
 
 struct tape_t {
@@ -268,7 +268,7 @@ template <typename mix> struct u_op_mix : mix {
     node *new_node = a.t().new_node();
     new_node->v_ = fwd(a.n().v_);
     new_node->backwards_ = bf();
-    new_node->l_ = a.np();
+    new_node->ls_.push_back(a.np());
     return variable{&a.t(), new_node};
   }
 };
@@ -281,8 +281,8 @@ template <typename mix> struct op_mix : mix {
     node *new_node = a.t().new_node();
     new_node->v_ = fwd(a.n().v_, b.n().v_);
     new_node->backwards_ = bf();
-    new_node->l_ = a.np();
-    new_node->r_ = b.np();
+    new_node->ls_.push_back(a.np());
+    new_node->rs_.push_back(b.np());
     return variable{&a.t(), new_node};
   }
 };
@@ -361,7 +361,7 @@ variable variable::operator-() const { return *this * variable(-1.0, t_); }
 void sqrt_mix::backward(tape_t *t, node *n) {
   variable f{t, n};
   variable &fg = grad(f);
-  variable l{t, n->l_};
+  variable l{t, n->ls_.front()};
 
   auto df = [&]() { return 0.5 * fg / sqrt(l); };
 
@@ -375,7 +375,7 @@ void sqrt_mix::backward(tape_t *t, node *n) {
 void exp_mix::backward(tape_t *t, node *n) {
   variable f{t, n};
   variable &fg = grad(f);
-  variable l{t, n->l_};
+  variable l{t, n->ls_.front()};
 
   auto df = [&]() { return f * fg; };
 
@@ -389,7 +389,7 @@ void exp_mix::backward(tape_t *t, node *n) {
 void log_mix::backward(tape_t *t, node *n) {
   variable f{t, n};
   variable &fg = grad(f);
-  variable l{t, n->l_};
+  variable l{t, n->ls_.front()};
 
   auto df = [&]() { return fg / l; };
 
@@ -403,7 +403,7 @@ void log_mix::backward(tape_t *t, node *n) {
 void neg_mix::backward(tape_t *t, node *n) {
   variable f{t, n};
   variable &fg = grad(f);
-  variable l{t, n->l_};
+  variable l{t, n->ls_.front()};
 
   auto df = [&]() { return -fg; };
 
@@ -418,7 +418,7 @@ void sin_mix::backward(tape_t *t, node *n) {
 
   variable f{t, n};
   variable &fg = grad(f);
-  variable l{t, n->l_};
+  variable l{t, n->ls_.front()};
 
   auto df = [&]() { return cos(l) * fg; };
 
@@ -432,7 +432,7 @@ void sin_mix::backward(tape_t *t, node *n) {
 void cos_mix::backward(tape_t *t, node *n) {
   variable f{t, n};
   variable &fg = grad(f);
-  variable l{t, n->l_};
+  variable l{t, n->ls_.front()};
 
   auto df = [&]() { return -sin(l) * fg; };
 
@@ -447,7 +447,7 @@ void tanh_mix::backward(tape_t *t, node *n) {
 
   variable f{t, n};
   variable &fg = grad(f);
-  variable l{t, n->l_};
+  variable l{t, n->ls_.front()};
 
   auto df = [&]() { return (1.0 - (f ^ 2.0)) * fg; };
 
@@ -462,7 +462,7 @@ void relu_mix::backward(tape_t *t, node *n) {
 
   variable f{t, n};
   variable &fg = grad(f);
-  variable l{t, n->l_};
+  variable l{t, n->ls_.front()};
 
   auto df = [&]() { return (l.value() > 0.0) * fg; };
 
@@ -476,7 +476,7 @@ void relu_mix::backward(tape_t *t, node *n) {
 // void id_mix::backward(tape_t *t, node *n) {
 //   variable f{t, n};
 //   variable &fg = grad(f);
-//   variable l{t, n->l_};
+//   variable l{t, n->ls_.front()};
 //
 //   variable one = t->new_variable(1.0);
 //
@@ -490,8 +490,8 @@ void relu_mix::backward(tape_t *t, node *n) {
 void add_mix::backward(tape_t *t, node *n) {
   variable f{t, n};
   variable &fg = grad(f);
-  variable l{t, n->l_};
-  variable r{t, n->r_};
+  variable l{t, n->ls_.front()};
+  variable r{t, n->rs_.front()};
 
   if (!grad(l).is_alive()) {
     grad(l) = t->new_variable(0.0);
@@ -507,8 +507,8 @@ void add_mix::backward(tape_t *t, node *n) {
 void sub_mix::backward(tape_t *t, node *n) {
   variable f{t, n};
   variable &fg = grad(f);
-  variable l{t, n->l_};
-  variable r{t, n->r_};
+  variable l{t, n->ls_.front()};
+  variable r{t, n->rs_.front()};
 
   if (!grad(l).is_alive()) {
     grad(l) = t->new_variable(0.0);
@@ -524,8 +524,8 @@ void sub_mix::backward(tape_t *t, node *n) {
 void mul_mix::backward(tape_t *t, node *n) {
   variable f{t, n};
   variable &fg = grad(f);
-  variable l{t, n->l_};
-  variable r{t, n->r_};
+  variable l{t, n->ls_.front()};
+  variable r{t, n->rs_.front()};
 
   auto dfdl = [&]() { return r * fg; };
   auto dfdr = [&]() { return l * fg; };
@@ -546,8 +546,8 @@ void mul_mix::backward(tape_t *t, node *n) {
 void div_mix::backward(tape_t *t, node *n) {
   variable f{t, n};
   variable &fg = grad(f);
-  variable l{t, n->l_};
-  variable r{t, n->r_};
+  variable l{t, n->ls_.front()};
+  variable r{t, n->rs_.front()};
 
   if (grad(l).is_alive())
     grad(l) += fg / r;
@@ -563,8 +563,8 @@ void div_mix::backward(tape_t *t, node *n) {
 void pow_mix::backward(tape_t *t, node *n) {
   variable f{t, n};
   variable &fg = grad(f);
-  variable l{t, n->l_};
-  variable r{t, n->r_};
+  variable l{t, n->ls_.front()};
+  variable r{t, n->rs_.front()};
 
   auto dfdl = [&]() { return fg * (r * pow(l, r - 1.0)); };
   auto dfdr = [&]() { return fg * f * log(l); };
@@ -646,23 +646,23 @@ inline std::string as_dot(variable iv, size_t i, size_t cnt, size_t start_cnt) {
        << idx << " [label = \"[" << idx << "] " << std::setprecision(15)
        << to_string(nd) << "\", fontcolor=blue, color=blue];\n";
     if (is_binary_op(nd.backwards_.n_)) {
-      if (check(nd.l_)) {
-        ss << nd.l_->idx_ + start_cnt << "->" << nd.backwards_.n_ << cnt
-           << "; ";
+      if (check(nd.ls_.front())) {
+        ss << nd.ls_.front()->idx_ + start_cnt << "->" << nd.backwards_.n_
+           << cnt << "; ";
       }
-      if (check(nd.r_)) {
-        ss << nd.r_->idx_ + start_cnt << "->" << nd.backwards_.n_ << cnt
-           << "; ";
+      if (check(nd.rs_.front())) {
+        ss << nd.rs_.front()->idx_ + start_cnt << "->" << nd.backwards_.n_
+           << cnt << "; ";
       }
-      if (check(nd.l_) || check(nd.r_)) {
+      if (check(nd.ls_.front()) || check(nd.rs_.front())) {
         ss << nd.backwards_.n_ << cnt << "->" << idx << "; ";
       }
     } else if (is_unary_op(nd.backwards_.n_)) {
-      if (check(nd.l_)) {
-        ss << nd.l_->idx_ + start_cnt << "->" << nd.backwards_.n_ << cnt
-           << "; ";
+      if (check(nd.ls_.front())) {
+        ss << nd.ls_.front()->idx_ + start_cnt << "->" << nd.backwards_.n_
+           << cnt << "; ";
       }
-      if (check(nd.l_)) {
+      if (check(nd.ls_.front())) {
         ss << nd.backwards_.n_ << cnt << "->" << idx << "; ";
       }
     }
