@@ -1171,9 +1171,68 @@ void test_23() {
   AKS_CHECK_VALUE(DIFF(3, 3, 3), -13.07993243360558);
 }
 
+void test_24() {
+  std::cout << "\ntest_24" << std::endl;
+  using namespace aks;
+
+  tape_t t;
+
+  variable x = t.new_variable(2.0);
+  variable y = t.new_variable(3.0);
+  variable z = t.new_variable(5.0);
+
+  AKS_CHECK_VARIABLE(x, 2.0);
+  AKS_CHECK_VARIABLE(y, 3.0);
+  AKS_CHECK_VARIABLE(z, 5.0);
+
+  auto DIFF = [&](size_t I, size_t J, size_t K) {
+    t.push_state();
+    variable f = tanh(x * tanh(sqrt(z - x)));
+    ;
+    for (size_t k = 0; k < K; ++k) {
+      t.zero_grad();
+      backward(f);
+      f = grad(z);
+    }
+    for (size_t j = 0; j < J; ++j) {
+      t.zero_grad();
+      backward(f);
+      f = grad(y);
+    }
+    for (size_t i = 0; i < I; ++i) {
+      t.zero_grad();
+      backward(f);
+      f = grad(x);
+    }
+
+    double result = f.value();
+    t.pop_state();
+    return result;
+  };
+
+  AKS_CHECK_VALUE(DIFF(0, 0, 0), 0.954367034850222);
+  AKS_CHECK_VALUE(DIFF(0, 1, 0), 0.0);
+  AKS_CHECK_VALUE(DIFF(0, 0, 1), 6.061400669882047e-03);
+  AKS_CHECK_VALUE(DIFF(0, 0, 2), -5.083687521844842e-03);
+  AKS_CHECK_VALUE(DIFF(0, 0, 3), 5.581847524380858e-03);
+  AKS_CHECK_VALUE(DIFF(1, 0, 0), 7.770852538096278e-02);
+  AKS_CHECK_VALUE(DIFF(1, 0, 1), -2.752914043067545e-03);
+  AKS_CHECK_VALUE(DIFF(1, 0, 2), 5.285110160304726e-04);
+  AKS_CHECK_VALUE(DIFF(1, 0, 3), 1.640651071941994e-03);
+  AKS_CHECK_VALUE(DIFF(2, 0, 0), -0.139599050715691);
+  AKS_CHECK_VALUE(DIFF(2, 0, 1), 1.023603858623439e-03);
+  AKS_CHECK_VALUE(DIFF(2, 0, 2), -7.076421643329067e-04);
+  AKS_CHECK_VALUE(DIFF(2, 0, 3), 2.038101125111268e-03);
+  AKS_CHECK_VALUE(DIFF(3, 0, 0), 0.245847487120853);
+  AKS_CHECK_VALUE(DIFF(3, 0, 1), 4.655063058225343e-03);
+  AKS_CHECK_VALUE(DIFF(3, 0, 2), -4.438653791965176e-03);
+  AKS_CHECK_VALUE(DIFF(3, 0, 3), 6.993946507113833e-03);
+}
+
 } // namespace
 
 int main() {
+  test_24();
   test_23();
   test_22();
   test_21();
