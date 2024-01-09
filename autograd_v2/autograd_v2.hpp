@@ -37,21 +37,6 @@ using reals_t = vec_t<real_t>;
 using idx_t = size_t;
 constexpr idx_t const sntnl_idx = std::numeric_limits<idx_t>::max();
 
-template <typename T>
-std::ostream &operator<<(std::ostream &o, vec_t<T> const &vs) {
-  o << "[";
-  bool comma = false;
-  for (auto const &v : vs) {
-    if (comma) {
-      o << ",";
-    }
-    o << v;
-    comma = true;
-  }
-  o << "]";
-  return o;
-}
-
 #pragma region details
 
 namespace detail {
@@ -618,6 +603,20 @@ std::ostream &operator<<(std::ostream &o, variable const &vs) {
 } // namespace aks
 
 namespace aks {
+template <typename T>
+std::ostream &operator<<(std::ostream &o, vec_t<T> const &vs) {
+  o << "[";
+  bool comma = false;
+  for (auto const &v : vs) {
+    if (comma) {
+      o << ",";
+    }
+    o << v;
+    comma = true;
+  }
+  o << "]";
+  return o;
+}
 
 std::string to_string(node const &v) {
   std::stringstream ss;
