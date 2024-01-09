@@ -1229,9 +1229,52 @@ void test_24() {
   AKS_CHECK_VALUE(DIFF(3, 0, 3), 6.993946507113833e-03);
 }
 
+void test_25() {
+  std::cout << "\ntest_25" << std::endl;
+  using namespace aks;
+
+  tape_t t;
+
+  auto to_variable = [&](double v) { return t.new_variable(v); };
+
+  vec_t<variable> xs = zipped_op(to_variable, reals_t{2.0, 3.0, 5.0});
+  vec_t<variable> ys = zipped_op(to_variable, reals_t{7.0, 11.0, 13.0});
+
+  AKS_CHECK_PRINT(t.nodes_.size(), t.nodes_.size(), 6);
+  AKS_CHECK_PRINT(t.grads_.size(), t.grads_.size(), 0);
+
+  variable d = dot(xs, ys);
+
+  AKS_CHECK_VARIABLE(d, 112.0);
+
+  AKS_CHECK_PRINT(t.nodes_.size(), t.nodes_.size(), 7);
+  AKS_CHECK_PRINT(t.grads_.size(), t.grads_.size(), 0);
+
+  // backward(d);
+  // AKS_CHECK_VARIABLE(grad(xs[0]), 7.0);
+
+  variable s = asum(ys);
+  AKS_CHECK_VARIABLE(s, 31.0);
+
+  AKS_CHECK_PRINT(t.nodes_.size(), t.nodes_.size(), 8);
+  AKS_CHECK_PRINT(t.grads_.size(), t.grads_.size(), 0);
+
+  // backward(s);
+  // AKS_CHECK_VARIABLE(grad(ys[0]), 1.0);
+
+  variable g = gsum(xs);
+  AKS_CHECK_VARIABLE(g, 30.0);
+
+  AKS_CHECK_PRINT(t.nodes_.size(), t.nodes_.size(), 9);
+  AKS_CHECK_PRINT(t.grads_.size(), t.grads_.size(), 0);
+
+  // backward(g);
+  // AKS_CHECK_VARIABLE(grad(xs[0]), 1.0);
+}
 } // namespace
 
 int main() {
+  test_25();
   test_24();
   test_23();
   test_22();

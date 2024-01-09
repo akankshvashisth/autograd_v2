@@ -39,7 +39,7 @@ constexpr idx_t const sntnl_idx = std::numeric_limits<idx_t>::max();
 
 #pragma region details
 
-namespace detail {
+// namespace detail {
 template <typename F, typename T, typename... Ts>
 auto zipped_op(F &&f, T &&t, Ts &&...ts) {
   using ret_t = decltype(f(t.front(), ts.front()...));
@@ -51,7 +51,7 @@ auto zipped_op(F &&f, T &&t, Ts &&...ts) {
   return ret;
 }
 
-} // namespace detail
+//} // namespace detail
 
 struct tape_t;
 
@@ -272,6 +272,86 @@ template <typename mix> struct op_mix : mix {
   }
 };
 
+struct dot_mix {
+  static real_t start() { return 0.0; }
+  static void apply(real_t &r, real_t a, real_t b) { r += (a * b); }
+  static back_f bf() { return {"dot", nullptr}; }
+  // static void backward(tape_t* t, node* n);
+};
+
+struct asum_mix {
+  static real_t start() { return 0.0; }
+  static void apply(real_t &r, real_t a) { r += a; }
+  static back_f bf() { return {"asum", nullptr}; }
+  // static void backward(tape_t* t, node* n);
+};
+
+struct gsum_mix {
+  static real_t start() { return 1.0; }
+  static void apply(real_t &r, real_t a) { r *= a; }
+  static back_f bf() { return {"gsum", nullptr}; }
+  // static void backward(tape_t* t, node* n);
+};
+
+// struct max_mix {
+//   static real_t start() { return -INFINITY; }
+//   static void apply(real_t &r, real_t a) { r = std::max(r, a); }
+//   static back_f bf() { return {"max", nullptr}; }
+//   // static void backward(tape_t* t, node* n);
+// };
+//
+// struct min_mix {
+//   static real_t start() { return INFINITY; }
+//   static void apply(real_t &r, real_t a) { r = std::min(r, a); }
+//   static back_f bf() { return {"min", nullptr}; }
+//   // static void backward(tape_t* t, node* n);
+// };
+
+template <typename mix> struct v_u_to_1_op_mix : mix {
+  using mix::apply;
+  using mix::bf;
+  using mix::start;
+  static real_t fwd_impl(vec_t<variable> const &a, vec_t<node *> &ls) {
+    real_t ret = start();
+    for (int i = 0; i < a.size(); i++) {
+      apply(ret, a[i].n().v_);
+      ls.push_back(a[i].np());
+    }
+    return ret;
+  }
+  static variable fwd(vec_t<variable> const &a) {
+    assert(a.size());
+    node *new_node = a.front().t().new_node();
+    new_node->v_ = fwd_impl(a, new_node->ls_);
+    new_node->backwards_ = bf();
+    return variable{&a.front().t(), new_node};
+  }
+};
+
+template <typename mix> struct v_b_to_1_op_mix : mix {
+  using mix::apply;
+  using mix::bf;
+  using mix::start;
+  static real_t fwd_impl(vec_t<variable> const &a, vec_t<variable> const &b,
+                         vec_t<node *> &ls, vec_t<node *> &rs) {
+    real_t ret = start();
+    for (int i = 0; i < a.size(); i++) {
+      apply(ret, a[i].n().v_, b[i].n().v_);
+      ls.push_back(a[i].np());
+      rs.push_back(b[i].np());
+    }
+    return ret;
+  }
+  static variable fwd(vec_t<variable> const &a, vec_t<variable> const &b) {
+    assert(a.size());
+    assert(a.size() == b.size());
+    node *new_node = a.front().t().new_node();
+    new_node->v_ = fwd_impl(a, b, new_node->ls_, new_node->rs_);
+    new_node->backwards_ = bf();
+    return variable{&a.front().t(), new_node};
+  }
+};
+
 #pragma endregion
 
 #pragma region operator_overloads
@@ -338,6 +418,39 @@ variable &variable::operator/=(variable const &r) {
 }
 
 variable variable::operator-() const { return *this * variable(-1.0, t_); }
+
+variable dot(vec_t<variable> const &a, vec_t<variable> const &b) {
+  return v_b_to_1_op_mix<dot_mix>::fwd(a, b);
+}
+
+variable asum(vec_t<variable> const &a) {
+  return v_u_to_1_op_mix<asum_mix>::fwd(a);
+}
+variable gsum(vec_t<variable> const &a) {
+  return v_u_to_1_op_mix<gsum_mix>::fwd(a);
+}
+
+variable max(vec_t<variable> const &a) {
+  assert(a.size());
+  variable m = a[0];
+  for (size_t i = 1; i < a.size(); ++i) {
+    if (a[i].value() > m.value()) {
+      m = a[i];
+    }
+  }
+  return m;
+}
+
+variable min(vec_t<variable> const &a) {
+  assert(a.size());
+  variable m = a[0];
+  for (size_t i = 1; i < a.size(); ++i) {
+    if (a[i].value() < m.value()) {
+      m = a[i];
+    }
+  }
+  return m;
+}
 
 #pragma endregion
 
