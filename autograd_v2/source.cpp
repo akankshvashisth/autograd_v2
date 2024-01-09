@@ -1354,23 +1354,27 @@ void test_25() {
   AKS_CHECK_PRINT(t.nodes_.size(), t.nodes_.size(), 7);
   AKS_CHECK_PRINT(t.grads_.size(), t.grads_.size(), 0);
 
-  // backward(d);
-  // AKS_CHECK_VARIABLE(grad(xs[0]), 7.0);
+  t.zero_grad();
+  backward(d);
+  AKS_CHECK_VARIABLE(grad(xs[0]), 7.0);
+  AKS_CHECK_VARIABLE(grad(ys[1]), 3.0);
 
   variable s = asum(ys);
   AKS_CHECK_VARIABLE(s, 31.0);
 
-  AKS_CHECK_PRINT(t.nodes_.size(), t.nodes_.size(), 8);
-  AKS_CHECK_PRINT(t.grads_.size(), t.grads_.size(), 0);
+  AKS_CHECK_PRINT(t.nodes_.size(), t.nodes_.size(), 15);
+  AKS_CHECK_PRINT(t.grads_.size(), t.grads_.size(), 7);
 
-  // backward(s);
-  // AKS_CHECK_VARIABLE(grad(ys[0]), 1.0);
+  t.zero_grad();
+  backward(s);
+  AKS_CHECK_VARIABLE(grad(xs[0]), 0.0);
+  AKS_CHECK_VARIABLE(grad(ys[1]), 1.0);
 
   variable g = gsum(xs);
   AKS_CHECK_VARIABLE(g, 30.0);
 
-  AKS_CHECK_PRINT(t.nodes_.size(), t.nodes_.size(), 9);
-  AKS_CHECK_PRINT(t.grads_.size(), t.grads_.size(), 0);
+  AKS_CHECK_PRINT(t.nodes_.size(), t.nodes_.size(), 62);
+  AKS_CHECK_PRINT(t.grads_.size(), t.grads_.size(), 15);
 
   // backward(g);
   // AKS_CHECK_VARIABLE(grad(xs[0]), 15.0);
@@ -1378,8 +1382,8 @@ void test_25() {
   variable mx = max(xs);
   AKS_CHECK_VARIABLE(mx, 5.0);
 
-  AKS_CHECK_PRINT(t.nodes_.size(), t.nodes_.size(), 9);
-  AKS_CHECK_PRINT(t.grads_.size(), t.grads_.size(), 0);
+  AKS_CHECK_PRINT(t.nodes_.size(), t.nodes_.size(), 62);
+  AKS_CHECK_PRINT(t.grads_.size(), t.grads_.size(), 15);
 
   // backward(mx);
   // AKS_CHECK_VARIABLE(grad(xs[0]), 0.0);
@@ -1387,8 +1391,8 @@ void test_25() {
   variable mn = min(xs);
   AKS_CHECK_VARIABLE(mn, 2.0);
 
-  AKS_CHECK_PRINT(t.nodes_.size(), t.nodes_.size(), 9);
-  AKS_CHECK_PRINT(t.grads_.size(), t.grads_.size(), 0);
+  AKS_CHECK_PRINT(t.nodes_.size(), t.nodes_.size(), 62);
+  AKS_CHECK_PRINT(t.grads_.size(), t.grads_.size(), 15);
 
   // backward(mn);
   // AKS_CHECK_VARIABLE(grad(xs[0]), 1.0);
@@ -1396,8 +1400,8 @@ void test_25() {
   variable mm = mean(ys);
   AKS_CHECK_VARIABLE(mm, 10.3333333);
 
-  AKS_CHECK_PRINT(t.nodes_.size(), t.nodes_.size(), 12);
-  AKS_CHECK_PRINT(t.grads_.size(), t.grads_.size(), 0);
+  AKS_CHECK_PRINT(t.nodes_.size(), t.nodes_.size(), 65);
+  AKS_CHECK_PRINT(t.grads_.size(), t.grads_.size(), 15);
 
   // backward(mm);
   // AKS_CHECK_VARIABLE(grad(ys[0]), 1.0);
@@ -1405,8 +1409,8 @@ void test_25() {
   variable gm = gmean(xs);
   AKS_CHECK_VARIABLE(gm, 10.0);
 
-  AKS_CHECK_PRINT(t.nodes_.size(), t.nodes_.size(), 15);
-  AKS_CHECK_PRINT(t.grads_.size(), t.grads_.size(), 0);
+  AKS_CHECK_PRINT(t.nodes_.size(), t.nodes_.size(), 68);
+  AKS_CHECK_PRINT(t.grads_.size(), t.grads_.size(), 15);
 
   // backward(gm);
   // AKS_CHECK_VARIABLE(grad(xs[0]), 1.0);

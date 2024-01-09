@@ -275,22 +275,22 @@ template <typename mix> struct op_mix : mix {
 struct dot_mix {
   static real_t start() { return 0.0; }
   static void apply(real_t &r, real_t a, real_t b) { r += (a * b); }
-  static back_f bf() { return {"dot", nullptr}; }
-  // static void backward(tape_t* t, node* n);
+  static back_f bf() { return {"dot", backward}; }
+  static void backward(tape_t *t, node *n);
 };
 
 struct asum_mix {
   static real_t start() { return 0.0; }
   static void apply(real_t &r, real_t a) { r += a; }
-  static back_f bf() { return {"asum", nullptr}; }
-  // static void backward(tape_t* t, node* n);
+  static back_f bf() { return {"asum", backward}; }
+  static void backward(tape_t *t, node *n);
 };
 
 struct gsum_mix {
   static real_t start() { return 1.0; }
   static void apply(real_t &r, real_t a) { r *= a; }
   static back_f bf() { return {"gsum", nullptr}; }
-  // static void backward(tape_t* t, node* n);
+  static void backward(tape_t *t, node *n);
 };
 
 // struct max_mix {
@@ -587,6 +587,44 @@ void relu_mix::backward(tape_t *t, node *n) {
 //
 //   grad(l) += grad(l) + fg;
 // }
+
+void dot_mix::backward(tape_t *t, node *n) {
+  variable f{t, n};
+  variable &fg = grad(f);
+
+  for (size_t i = 0; i < n->rs_.size(); ++i) {
+    variable l{t, n->ls_[i]};
+    variable r{t, n->rs_[i]};
+
+    auto dfdl = [&]() { return r * fg; };
+    auto dfdr = [&]() { return l * fg; };
+
+    if (grad(l).is_alive())
+      grad(l) += dfdl();
+    else {
+      grad(l) = dfdl();
+    }
+
+    if (grad(r).is_alive())
+      grad(r) += dfdr();
+    else {
+      grad(r) = dfdr();
+    }
+  }
+}
+
+void asum_mix::backward(tape_t *t, node *n) {
+  variable f{t, n};
+  variable &fg = grad(f);
+
+  for (auto &ls : n->ls_) {
+    variable l{t, ls};
+    if (!grad(l).is_alive()) {
+      grad(l) = t->new_variable(0.0);
+    }
+    grad(l) += fg;
+  }
+}
 
 void add_mix::backward(tape_t *t, node *n) {
   variable f{t, n};
