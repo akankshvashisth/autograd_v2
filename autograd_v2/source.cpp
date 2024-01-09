@@ -1,6 +1,43 @@
 
 #include "autograd_v2.hpp"
 
+namespace {
+constexpr bool QUIET_PASS = true;
+static size_t TOTAL_TEST_RUN = 0;
+
+#define AKS_PRINT(EXPR)                                                        \
+  std::cout << std::setprecision(15) << #EXPR << " = " << EXPR << std::endl
+
+#define AKS_PRINT_AS(NAME, EXPR)                                               \
+  std::cout << std::setprecision(15) << NAME << " " << EXPR << "       \t("    \
+            << #EXPR << ")" << std::endl
+
+#define AKS_CHECK_PRINT(EXPR, EXPR_VAL, EXPECTED)                              \
+  do {                                                                         \
+    ++TOTAL_TEST_RUN;                                                          \
+    const double diff = std::abs(double(EXPR_VAL) - double(EXPECTED));         \
+    if (std::isnan(double(EXPR_VAL)) || diff > 1e-4) {                         \
+      std::cout << std::setprecision(18) << "\nCHECK FAILED: " << #EXPR        \
+                << " = " << double(EXPR_VAL) << " != " << EXPECTED << " ("     \
+                << diff << ")"                                                 \
+                << " on line " << __LINE__ << " in " << __FILE__ << std::endl; \
+      assert(true);                                                            \
+    } else {                                                                   \
+      if (!QUIET_PASS) {                                                       \
+        std::cout << std::setprecision(15) << "____pass____: " << #EXPR        \
+                  << " = " << double(EXPR_VAL) << std::endl;                   \
+      } else {                                                                 \
+        std::cout << ".";                                                      \
+      }                                                                        \
+    }                                                                          \
+  } while (false)
+
+#define AKS_CHECK_VARIABLE(EXPR, EXPECTED)                                     \
+  AKS_CHECK_PRINT(EXPR, EXPR.value(), EXPECTED)
+} // namespace
+
+namespace {
+
 void test_01() {
   std::cout << "\ntest_01" << std::endl;
   using namespace aks;
@@ -193,27 +230,28 @@ void test_07() {
   std::cout << "\ntest_07" << std::endl;
   using namespace aks;
   tape_t t;
-  const variable x = t.new_variable(0.5);
+  const variable x = t.new_variable(2);
 
   variable f =
-      ((sin(x) ^ 2.0) / (log(x) ^ 2.0)) * (1.0 - (exp(x) ^ (-x))) + cos(x);
+      ((sin(x) ^ 2.0) / (log(x + 50) ^ 2.0)) * (1.0 - (exp(x) ^ (-x))) + cos(x);
 
   t.push_state();
-  AKS_CHECK_VARIABLE(x, 0.5);
-  AKS_CHECK_VARIABLE(f, 0.983404324914176);
+  AKS_CHECK_VARIABLE(x, 2);
+  AKS_CHECK_VARIABLE(f, -0.364157274408385);
   vec_t<real_t> expected = {
-      0.891237965715272, 15.55671890266844, 190.4602521322405,
-      2259.345766294736, 435193.5537352614, 7247363.859210967,
-      134459863.0333093, 2752914425.971472, 61710384541.39270};
+      -0.953510374699207, 0.314131605670404,  1.160290265129676,
+      -0.127327515031308, -2.350487124618407, 3.030458853334027,
+      -1.213075727292083, -63.66425006790054, 463.4642048661533};
 
   for (int i = 0; i < 9; ++i) {
     t.zero_grad();
     backward(f);
     f = grad(x);
+    // AKS_PRINT(f);
     AKS_CHECK_VARIABLE(f, expected[i]);
   }
-  AKS_CHECK_PRINT(t.nodes_.size(), t.nodes_.size(), 3691972);
-  AKS_CHECK_PRINT(t.grads_.size(), t.grads_.size(), 1026884);
+  AKS_CHECK_PRINT(t.nodes_.size(), t.nodes_.size(), 3728582);
+  AKS_CHECK_PRINT(t.grads_.size(), t.grads_.size(), 1038086);
   t.pop_state();
 }
 
@@ -619,7 +657,6 @@ void test_17() {
   };
 
   {
-
     t.push_state();
     variable f = F();
 
@@ -696,7 +733,40 @@ void test_17() {
   }
 }
 
+void test_18() {
+  std::cout << "\ntest_18" << std::endl;
+  using namespace aks;
+  tape_t t;
+  const variable x = t.new_variable(2);
+
+  variable f =
+      ((sin(x) ^ 2.0) / (log(x + 50) ^ 2.0)) * tanh((1.0 - (exp(x) ^ (-x)))) +
+      cos(x);
+
+  t.push_state();
+  AKS_CHECK_VARIABLE(x, 2);
+  AKS_CHECK_VARIABLE(f, -0.376226238713693);
+  vec_t<real_t> expected = {-0.944550600009225, 0.344604639299095,
+                            1.084903225704792,  -0.203449504037272,
+                            -1.677246351875284, 0.706056911049653,
+                            0.669408525907504,  -6.722648455610035};
+
+  for (int i = 0; i < 8; ++i) {
+    t.zero_grad();
+    backward(f);
+    f = grad(x);
+    // AKS_PRINT(f);
+    AKS_CHECK_VARIABLE(f, expected[i]);
+  }
+  AKS_CHECK_PRINT(t.nodes_.size(), t.nodes_.size(), 1127980);
+  AKS_CHECK_PRINT(t.grads_.size(), t.grads_.size(), 307884);
+  t.pop_state();
+}
+
+} // namespace
+
 int main() {
+  test_18();
   test_17();
   test_16();
   test_15();
@@ -715,6 +785,6 @@ int main() {
   test_02();
   test_01();
 
-  std::cout << "\nDONE" << std::endl;
+  std::cout << "\nDONE: " << TOTAL_TEST_RUN << " checks" << std::endl;
   return 0;
 }

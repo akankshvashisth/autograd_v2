@@ -15,38 +15,18 @@
 #include <unordered_map>
 #include <vector>
 
-namespace aks {
-
-constexpr bool QUIET_PASS = true;
-
-#define AKS_PRINT(EXPR)                                                        \
-  std::cout << std::setprecision(15) << #EXPR << " = " << EXPR << std::endl
-
-#define AKS_PRINT_AS(NAME, EXPR)                                               \
-  std::cout << std::setprecision(15) << NAME << " " << EXPR << "       \t("    \
-            << #EXPR << ")" << std::endl
-
-#define AKS_CHECK_PRINT(EXPR, EXPR_VAL, EXPECTED)                              \
+#if NDEBUG
+#define CHECK_NAN(x)                                                           \
   do {                                                                         \
-    const double diff = std::abs(double(EXPR_VAL) - double(EXPECTED));         \
-    if (diff > 1e-4) {                                                         \
-      std::cout << std::setprecision(18) << "\nCHECK FAILED: " << #EXPR        \
-                << " = " << EXPR_VAL << " != " << EXPECTED << " (" << diff     \
-                << ")"                                                         \
-                << " on line " << __LINE__ << " in " << __FILE__ << std::endl; \
-      assert(true);                                                            \
-    } else {                                                                   \
-      if (!QUIET_PASS) {                                                       \
-        std::cout << std::setprecision(15) << "____pass____: " << #EXPR        \
-                  << " = " << EXPR_VAL << std::endl;                           \
-      } else {                                                                 \
-        std::cout << ".";                                                      \
-      }                                                                        \
-    }                                                                          \
-  } while (false)
+    auto d = x;                                                                \
+    assert(!std::isnan(d));                                                    \
+    return d;                                                                  \
+  } while (0)
+#else
+#define CHECK_NAN(x) return x
+#endif
 
-#define AKS_CHECK_VARIABLE(EXPR, EXPECTED)                                     \
-  AKS_CHECK_PRINT(EXPR, EXPR.value(), EXPECTED)
+namespace aks {
 
 template <typename T> using vec_t = std::vector<T>;
 template <typename T> using deq_t = std::deque<T>;
@@ -197,13 +177,13 @@ auto const &grad(variable const &n) { return n.t().grads_[n.n().idx_]; }
 #pragma region mixes
 
 struct exp_mix {
-  static real_t apply(real_t a) { return std::exp(a); }
+  static real_t apply(real_t a) { CHECK_NAN(std::exp(a)); }
   static back_f bf() { return {"exp", backward}; }
   static void backward(tape_t *t, node *n);
 };
 
 struct log_mix {
-  static real_t apply(real_t a) { return std::log(a); }
+  static real_t apply(real_t a) { CHECK_NAN(std::log(a)); }
   static back_f bf() { return {"log", backward}; }
   static void backward(tape_t *t, node *n);
 };
@@ -221,19 +201,19 @@ struct neg_mix {
 };
 
 struct sin_mix {
-  static real_t apply(real_t a) { return std::sin(a); }
+  static real_t apply(real_t a) { CHECK_NAN(std::sin(a)); }
   static back_f bf() { return {"sin", backward}; }
   static void backward(tape_t *t, node *n);
 };
 
 struct cos_mix {
-  static real_t apply(real_t a) { return std::cos(a); }
+  static real_t apply(real_t a) { CHECK_NAN(std::cos(a)); }
   static back_f bf() { return {"cos", backward}; }
   static void backward(tape_t *t, node *n);
 };
 
 struct sqrt_mix {
-  static real_t apply(real_t a) { return std::sqrt(a); }
+  static real_t apply(real_t a) { CHECK_NAN(std::sqrt(a)); }
   static back_f bf() { return {"sqrt", backward}; }
   static void backward(tape_t *t, node *n);
 };
