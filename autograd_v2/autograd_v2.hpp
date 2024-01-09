@@ -430,6 +430,9 @@ variable gsum(vec_t<variable> const &a) {
   return v_u_to_1_op_mix<gsum_mix>::fwd(a);
 }
 
+variable mean(vec_t<variable> const &a) { return asum(a) / real_t(a.size()); }
+variable gmean(vec_t<variable> const &a) { return gsum(a) / real_t(a.size()); }
+
 variable max(vec_t<variable> const &a) {
   assert(a.size());
   variable m = a[0];

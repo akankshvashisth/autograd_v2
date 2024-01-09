@@ -1288,6 +1288,24 @@ void test_25() {
 
   // backward(mn);
   // AKS_CHECK_VARIABLE(grad(xs[0]), 1.0);
+
+  variable mm = mean(ys);
+  AKS_CHECK_VARIABLE(mm, 10.3333333);
+
+  AKS_CHECK_PRINT(t.nodes_.size(), t.nodes_.size(), 12);
+  AKS_CHECK_PRINT(t.grads_.size(), t.grads_.size(), 0);
+
+  // backward(mm);
+  // AKS_CHECK_VARIABLE(grad(ys[0]), 1.0);
+
+  variable gm = gmean(xs);
+  AKS_CHECK_VARIABLE(gm, 10.0);
+
+  AKS_CHECK_PRINT(t.nodes_.size(), t.nodes_.size(), 15);
+  AKS_CHECK_PRINT(t.grads_.size(), t.grads_.size(), 0);
+
+  // backward(gm);
+  // AKS_CHECK_VARIABLE(grad(xs[0]), 1.0);
 }
 } // namespace
 
