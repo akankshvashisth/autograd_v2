@@ -823,7 +823,8 @@ template <typename real_t> void backward(var_t<real_t> v) {
 
 namespace aks {
 
-std::ostream &operator<<(std::ostream &o, var_t<re_t> const &vs) {
+template <typename real_t>
+std::ostream &operator<<(std::ostream &o, var_t<real_t> const &vs) {
   o << std::setprecision(15) << "var_t(" << vs.value() << ";"
     << (vs.n().backwards_.n_ ? vs.n().backwards_.n_ : "null") << ";"
     << vs.t().nodes_.size() << ")";
@@ -845,20 +846,21 @@ std::ostream &operator<<(std::ostream &o, vec_t<T> const &vs) {
   return o;
 }
 
-std::string to_string(node<re_t> const &v) {
+template <typename real_t> std::string to_string(node<real_t> const &v) {
   std::stringstream ss;
   ss << v.v_;
   return ss.str();
 }
 
-inline std::string as_dot(var_t<re_t> iv, size_t i, size_t cnt,
+template <typename real_t>
+inline std::string as_dot(var_t<real_t> iv, size_t i, size_t cnt,
                           size_t start_cnt) {
   auto check = [](auto x) { return x != nullptr; };
 
   std::stringstream ss;
 
   size_t idx = i + start_cnt;
-  node<re_t> &nd = iv.n();
+  node<real_t> &nd = iv.n();
 
   auto is_binary_op = [](std::string const &x) {
     return x == "add" || x == "sub" || x == "mul" || x == "div" || x == "pow";
@@ -903,7 +905,8 @@ inline std::string as_dot(var_t<re_t> iv, size_t i, size_t cnt,
   return ss.str();
 }
 
-inline std::string as_dot(tape_t<re_t> &t, size_t start_count = 0) {
+template <typename real_t>
+inline std::string as_dot(tape_t<real_t> &t, size_t start_count = 0) {
   auto &data = t.nodes_;
 
   auto to_symbol = [](std::string const &x) -> std::string {
@@ -939,7 +942,7 @@ inline std::string as_dot(tape_t<re_t> &t, size_t start_count = 0) {
   std::vector<std::string> strs;
   strs.reserve(data.size());
   for (size_t idx = 0; idx != data.size(); ++idx) {
-    const node<re_t> &d = data.at(idx);
+    const node<real_t> &d = data.at(idx);
     const char *o = d.backwards_.n_;
     std::string op = data[idx].backwards_.n_ ? data[idx].backwards_.n_ : "";
     // std::string op;

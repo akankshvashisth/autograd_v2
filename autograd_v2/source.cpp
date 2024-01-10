@@ -332,6 +332,8 @@ void test_09() {
 
   var_t<re_t> f = sin(y * tanh(x / 4.0)) / tanh(y / 6.0);
 
+  // AKS_PRINT(as_dot(t));
+
   t.push_state();
   AKS_CHECK_VARIABLE(x, 2);
   AKS_CHECK_VARIABLE(y, 3);
