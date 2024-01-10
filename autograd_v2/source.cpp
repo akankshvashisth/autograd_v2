@@ -1,4 +1,6 @@
 
+// #define AKS_NO_VCL
+
 #include "autograd_v2.hpp"
 
 namespace {
@@ -16,13 +18,14 @@ using ag_d = autograd_traits<double_t>;
 using ag_f = autograd_traits<float_t>;
 
 constexpr bool QUIET_PASS = true;
-constexpr bool QUIET_FAIL = true;
+constexpr bool QUIET_FAIL = false;
 constexpr bool ASSERT_FAIL = false;
 static size_t TOTAL_TEST_RUN = 0;
 static size_t TOTAL_TEST_PASS = 0;
 static size_t TOTAL_TEST_FAIL = 0;
 
 #define AKS_PRINT(EXPR)                                                        \
+  using namespace aks::vcl_detail;                                             \
   std::cout << std::setprecision(15) << #EXPR << " = " << EXPR << std::endl
 
 #define AKS_PRINT_AS(NAME, EXPR)                                               \
@@ -1497,9 +1500,84 @@ void test_25() {
   // backward(gm);
   // AKS_CHECK_VARIABLE(grad(xs[0]), 1.0);
 }
+
+void test_26() {
+  std::cout << "\ntest_26" << std::endl;
+
+#ifndef AKS_NO_VCL
+
+  using ag = autograd_traits<vcl::Vec2d>;
+
+  using namespace aks;
+  using namespace vcl;
+  using namespace std;
+  ag::tape_t t;
+  const ag::var_t x = t.new_variable(ag::value_t(std::numbers::pi_v<double_t>) /
+                                     ag::value_t(2.0, 1.0));
+
+  ag::var_t f = (sin(x) ^ ag::value_t(2.0)) + (cos(x) ^ ag::value_t(2.0));
+
+  t.push_state();
+  AKS_CHECK_PRINT(x.value()[0], x.value()[0],
+                  std::numbers::pi_v<double_t> / double_t(2.0));
+  AKS_CHECK_PRINT(x.value()[1], x.value()[1],
+                  std::numbers::pi_v<double_t> / double_t(1.0));
+  AKS_CHECK_PRINT(f.value()[0], f.value()[0], double_t(1.0));
+  AKS_CHECK_PRINT(f.value()[1], f.value()[1], double_t(1.0));
+
+  for (int i = 0; i < 1; ++i) {
+    t.zero_grad();
+    backward(f);
+    f = grad(x);
+    AKS_CHECK_PRINT(f.value()[0], f.value()[0], 0.0);
+    AKS_CHECK_PRINT(f.value()[1], f.value()[1], 0.0);
+  }
+  AKS_CHECK_PRINT(t.nodes_.size(), t.nodes_.size(), 36);
+  AKS_CHECK_PRINT(t.grads_.size(), t.grads_.size(), 8);
+  t.pop_state();
+
+#endif
+}
+
+void test_27() {
+  std::cout << "\ntest_27" << std::endl;
+#ifndef AKS_NO_VCL
+
+  using namespace aks;
+  using ag = autograd_traits<vcl::Vec2d>;
+
+  using namespace aks;
+  using namespace vcl;
+  using namespace std;
+  ag::tape_t t;
+  const ag::var_t x = t.new_variable(ag::value_t(std::numbers::pi_v<double_t>) /
+                                     ag::value_t(2.0));
+
+  ag::var_t f = sin(x);
+
+  t.push_state();
+  vec_t<ag_d::value_t> expected = {0, -1, 0, 1, 0, -1, 0, 1, 0};
+
+  for (int i = 0; i < 9; ++i) {
+    t.zero_grad();
+    backward(f);
+    f = grad(x);
+    AKS_CHECK_PRINT(f.value()[0], f.value()[0], expected[i]);
+    AKS_CHECK_PRINT(f.value()[1], f.value()[1], expected[i]);
+  }
+  AKS_CHECK_PRINT(t.nodes_.size(), t.nodes_.size(), 140178);
+  AKS_CHECK_PRINT(t.grads_.size(), t.grads_.size(), 39214);
+  t.pop_state();
+
+#endif
+}
+
 } // namespace
 
-int main() {
+int main_tests() {
+
+  test_27();
+  test_26();
   test_25();
   test_24_02();
   test_24_01();
@@ -1532,5 +1610,10 @@ int main() {
   std::cout << "\ntotal  : " << TOTAL_TEST_RUN
             << "\npassed : " << TOTAL_TEST_PASS
             << "\nfailed : " << TOTAL_TEST_FAIL << std::endl;
+  return 0;
+}
+
+int main() {
+  main_tests();
   return 0;
 }

@@ -16,6 +16,53 @@
 #include <variant>
 #include <vector>
 
+#ifndef AKS_NO_VCL
+
+#define VCL_NAMESPACE vcl
+
+#include <fog/vectorclass.h>
+
+#endif
+
+namespace aks {
+namespace vcl_detail {
+#ifndef AKS_NO_VCL
+
+vcl::Vec2d vec_sin(const vcl::Vec2d &v) {
+  return {std::sin(v[0]), std::sin(v[1])};
+}
+vcl::Vec2d vec_cos(const vcl::Vec2d &v) {
+  return {std::cos(v[0]), std::cos(v[1])};
+}
+vcl::Vec2d vec_tanh(const vcl::Vec2d &v) {
+  return {std::tanh(v[0]), std::tanh(v[1])};
+}
+vcl::Vec2d vec_exp(const vcl::Vec2d &v) {
+  return {std::exp(v[0]), std::exp(v[1])};
+}
+vcl::Vec2d vec_log(const vcl::Vec2d &v) {
+  return {std::log(v[0]), std::log(v[1])};
+}
+
+vcl::Vec2d vec_pow(const vcl::Vec2d &v, const vcl::Vec2d &t) {
+  return {std::pow(v[0], t[0]), std::pow(v[1], t[1])};
+}
+
+std::string to_string(const vcl::Vec2d &v) {
+  std::stringstream os;
+  os << std::setprecision(15) << "(" << v[0] << ", " << v[1] << ")";
+  return os.str();
+}
+
+std::ostream &operator<<(std::ostream &os, const vcl::Vec2d &v) {
+  os << std::setprecision(15) << "(" << v[0] << ", " << v[1] << ")";
+  return os;
+}
+
+#endif
+} // namespace vcl_detail
+} // namespace aks
+
 #if NDEBUG
 #define CHECK_NAN(x)                                                           \
   do {                                                                         \
@@ -174,21 +221,63 @@ template <typename real_t> auto const &grad(var_t<real_t> const &n) {
 
 template <typename real_t> struct exp_mix {
   using value_type = real_t;
-  static value_type apply(value_type a) { CHECK_NAN(std::exp(a)); }
+  static value_type apply(value_type a) {
+#ifndef AKS_NO_VCL
+    if constexpr (std::is_same<value_type, vcl::Vec2d>::value) {
+      using namespace ::aks::vcl_detail;
+      return vec_exp(a);
+    }
+#else
+    if constexpr (false) {
+    }
+#endif
+    else {
+      using namespace std;
+      CHECK_NAN(exp(a));
+    }
+  }
   static back_f<value_type> bf() { return {"exp", backward}; }
   static void backward(tape_t<value_type> *t, node<value_type> *n);
 };
 
 template <typename real_t> struct log_mix {
   using value_type = real_t;
-  static value_type apply(value_type a) { CHECK_NAN(std::log(a)); }
+  static value_type apply(value_type a) {
+#ifndef AKS_NO_VCL
+    if constexpr (std::is_same<value_type, vcl::Vec2d>::value) {
+      using namespace ::aks::vcl_detail;
+      return vec_log(a);
+    }
+#else
+    if constexpr (false) {
+    }
+#endif
+    else {
+      using namespace std;
+      CHECK_NAN(log(a));
+    }
+  }
   static back_f<value_type> bf() { return {"log", backward}; }
   static void backward(tape_t<value_type> *t, node<value_type> *n);
 };
 
 template <typename real_t> struct tanh_mix {
   using value_type = real_t;
-  static value_type apply(value_type a) { return std::tanh(a); }
+  static value_type apply(value_type a) {
+#ifndef AKS_NO_VCL
+    if constexpr (std::is_same<value_type, vcl::Vec2d>::value) {
+      using namespace ::aks::vcl_detail;
+      return vec_tanh(a);
+    }
+#else
+    if constexpr (false) {
+    }
+#endif
+    else {
+      using namespace std;
+      CHECK_NAN(tanh(a));
+    }
+  }
   static back_f<value_type> bf() { return {"tanh", backward}; }
   static void backward(tape_t<value_type> *t, node<value_type> *n);
 };
@@ -202,14 +291,42 @@ template <typename real_t> struct neg_mix {
 
 template <typename real_t> struct sin_mix {
   using value_type = real_t;
-  static value_type apply(value_type a) { CHECK_NAN(std::sin(a)); }
+  static value_type apply(value_type a) {
+#ifndef AKS_NO_VCL
+    if constexpr (std::is_same<value_type, vcl::Vec2d>::value) {
+      using namespace ::aks::vcl_detail;
+      return vec_sin(a);
+    }
+#else
+    if constexpr (false) {
+    }
+#endif
+    else {
+      using namespace std;
+      CHECK_NAN(sin(a));
+    }
+  }
   static back_f<value_type> bf() { return {"sin", backward}; }
   static void backward(tape_t<value_type> *t, node<value_type> *n);
 };
 
 template <typename real_t> struct cos_mix {
   using value_type = real_t;
-  static value_type apply(value_type a) { CHECK_NAN(std::cos(a)); }
+  static value_type apply(value_type a) {
+#ifndef AKS_NO_VCL
+    if constexpr (std::is_same<value_type, vcl::Vec2d>::value) {
+      using namespace ::aks::vcl_detail;
+      return vec_cos(a);
+    }
+#else
+    if constexpr (false) {
+    }
+#endif
+    else {
+      using namespace std;
+      CHECK_NAN(cos(a));
+    }
+  }
   static back_f<value_type> bf() { return {"cos", backward}; }
   static void backward(tape_t<value_type> *t, node<value_type> *n);
 };
@@ -266,7 +383,22 @@ template <typename real_t> struct div_mix {
 
 template <typename real_t> struct pow_mix {
   using value_type = real_t;
-  static value_type apply(value_type a, value_type b) { return std::pow(a, b); }
+  static value_type apply(value_type a, value_type b) {
+
+#ifndef AKS_NO_VCL
+    if constexpr (std::is_same<value_type, vcl::Vec2d>::value) {
+      using namespace ::aks::vcl_detail;
+      return vec_pow(a, b);
+    }
+#else
+    if constexpr (false) {
+    }
+#endif
+    else {
+      using namespace std;
+      CHECK_NAN(pow(a, b));
+    }
+  }
   static back_f<value_type> bf() { return {"pow", backward}; }
   static void backward(tape_t<value_type> *t, node<value_type> *n);
 };
@@ -589,7 +721,7 @@ void sqrt_mix<real_t>::backward(tape_t<real_t> *t, node<real_t> *n) {
   var_t<real_t> &fg = grad(f);
   var_t<real_t> l{t, n->ls_.front()};
 
-  auto df = [&]() { return real_t{0.5} *  fg / sqrt(l); };
+  auto df = [&]() { return real_t{0.5} * fg / sqrt(l); };
 
   backward_grad_accumulate(l, df);
 }
@@ -822,6 +954,16 @@ template <typename real_t> void backward(var_t<real_t> v) {
 } // namespace aks
 
 namespace aks {
+#ifndef AKS_NO_VCL
+
+std::ostream &operator<<(std::ostream &o, var_t<vcl::Vec2d> const &vs) {
+  using namespace vcl_detail;
+  o << std::setprecision(15) << "var_t(" << vs.value() << ";"
+    << (vs.n().backwards_.n_ ? vs.n().backwards_.n_ : "null") << ";"
+    << vs.t().nodes_.size() << ")";
+  return o;
+}
+#endif
 
 template <typename real_t>
 std::ostream &operator<<(std::ostream &o, var_t<real_t> const &vs) {
