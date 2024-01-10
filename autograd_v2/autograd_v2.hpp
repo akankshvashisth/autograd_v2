@@ -13,6 +13,7 @@
 #include <string>
 #include <tuple>
 #include <unordered_map>
+#include <variant>
 #include <vector>
 
 #if NDEBUG
@@ -57,12 +58,7 @@ struct tape_t;
 
 struct node;
 
-typedef void (*back_f_t)(tape_t *, node *);
-
-struct back_f {
-  const char *n_ = nullptr;
-  back_f_t f_ = nullptr;
-};
+struct variable;
 
 struct variable {
   variable(tape_t *t, node *n) : t_(t), n_(n) {}
@@ -99,6 +95,13 @@ struct variable {
 private:
   mutable tape_t *t_ = nullptr;
   node *n_ = nullptr;
+};
+
+typedef void (*back_f_t)(tape_t *, node *);
+
+struct back_f {
+  const char *n_ = nullptr;
+  back_f_t f_ = nullptr;
 };
 
 struct node {
@@ -150,7 +153,7 @@ struct tape_t {
   }
 
   deq_t<node> nodes_;
-  deq_t<variable> grads_;
+  vec_t<variable> grads_;
   stack_t<std::tuple<idx_t, idx_t>> saved_state_;
 };
 
@@ -459,6 +462,20 @@ variable min(vec_t<variable> const &a) {
 
 #pragma region backward
 
+template <typename F> void backward_grad_accumulate(variable &x, F df) {
+  if (grad(x).is_alive()) {
+    grad(x) += df();
+  } else {
+    grad(x) = df();
+  }
+}
+
+void backward_set_grad_if_not_alive(variable &x) {
+  if (!grad(x).is_alive()) {
+    grad(x) = x.t().new_variable(0.0);
+  }
+}
+
 void sqrt_mix::backward(tape_t *t, node *n) {
   variable f{t, n};
   variable &fg = grad(f);
@@ -466,11 +483,7 @@ void sqrt_mix::backward(tape_t *t, node *n) {
 
   auto df = [&]() { return 0.5 * fg / sqrt(l); };
 
-  if (grad(l).is_alive()) {
-    grad(l) += df();
-  } else {
-    grad(l) = df();
-  }
+  backward_grad_accumulate(l, df);
 }
 
 void exp_mix::backward(tape_t *t, node *n) {
@@ -480,11 +493,7 @@ void exp_mix::backward(tape_t *t, node *n) {
 
   auto df = [&]() { return f * fg; };
 
-  if (grad(l).is_alive()) {
-    grad(l) += df();
-  } else {
-    grad(l) = df();
-  }
+  backward_grad_accumulate(l, df);
 }
 
 void log_mix::backward(tape_t *t, node *n) {
@@ -494,11 +503,7 @@ void log_mix::backward(tape_t *t, node *n) {
 
   auto df = [&]() { return fg / l; };
 
-  if (grad(l).is_alive()) {
-    grad(l) += df();
-  } else {
-    grad(l) = df();
-  }
+  backward_grad_accumulate(l, df);
 }
 
 void neg_mix::backward(tape_t *t, node *n) {
@@ -508,11 +513,7 @@ void neg_mix::backward(tape_t *t, node *n) {
 
   auto df = [&]() { return -fg; };
 
-  if (grad(l).is_alive()) {
-    grad(l) += df();
-  } else {
-    grad(l) = df();
-  }
+  backward_grad_accumulate(l, df);
 }
 
 void sin_mix::backward(tape_t *t, node *n) {
@@ -523,11 +524,7 @@ void sin_mix::backward(tape_t *t, node *n) {
 
   auto df = [&]() { return cos(l) * fg; };
 
-  if (grad(l).is_alive()) {
-    grad(l) += df();
-  } else {
-    grad(l) = df();
-  }
+  backward_grad_accumulate(l, df);
 }
 
 void cos_mix::backward(tape_t *t, node *n) {
@@ -537,11 +534,7 @@ void cos_mix::backward(tape_t *t, node *n) {
 
   auto df = [&]() { return -sin(l) * fg; };
 
-  if (grad(l).is_alive()) {
-    grad(l) += df();
-  } else {
-    grad(l) = df();
-  }
+  backward_grad_accumulate(l, df);
 }
 
 void tanh_mix::backward(tape_t *t, node *n) {
@@ -552,11 +545,7 @@ void tanh_mix::backward(tape_t *t, node *n) {
 
   auto df = [&]() { return (1.0 - (f ^ 2.0)) * fg; };
 
-  if (grad(l).is_alive()) {
-    grad(l) += df();
-  } else {
-    grad(l) = df();
-  }
+  backward_grad_accumulate(l, df);
 }
 
 void relu_mix::backward(tape_t *t, node *n) {
@@ -567,11 +556,7 @@ void relu_mix::backward(tape_t *t, node *n) {
 
   auto df = [&]() { return (l.value() > 0.0) * fg; };
 
-  if (grad(l).is_alive()) {
-    grad(l) += df();
-  } else {
-    grad(l) = df();
-  }
+  backward_grad_accumulate(l, df);
 }
 
 // void id_mix::backward(tape_t *t, node *n) {
@@ -599,17 +584,8 @@ void dot_mix::backward(tape_t *t, node *n) {
     auto dfdl = [&]() { return r * fg; };
     auto dfdr = [&]() { return l * fg; };
 
-    if (grad(l).is_alive())
-      grad(l) += dfdl();
-    else {
-      grad(l) = dfdl();
-    }
-
-    if (grad(r).is_alive())
-      grad(r) += dfdr();
-    else {
-      grad(r) = dfdr();
-    }
+    backward_grad_accumulate(l, dfdl);
+    backward_grad_accumulate(r, dfdr);
   }
 }
 
@@ -619,9 +595,7 @@ void asum_mix::backward(tape_t *t, node *n) {
 
   for (auto &ls : n->ls_) {
     variable l{t, ls};
-    if (!grad(l).is_alive()) {
-      grad(l) = t->new_variable(0.0);
-    }
+    backward_set_grad_if_not_alive(l);
     grad(l) += fg;
   }
 }
@@ -632,12 +606,8 @@ void add_mix::backward(tape_t *t, node *n) {
   variable l{t, n->ls_.front()};
   variable r{t, n->rs_.front()};
 
-  if (!grad(l).is_alive()) {
-    grad(l) = t->new_variable(0.0);
-  }
-  if (!grad(r).is_alive()) {
-    grad(r) = t->new_variable(0.0);
-  }
+  backward_set_grad_if_not_alive(l);
+  backward_set_grad_if_not_alive(r);
 
   grad(l) += fg;
   grad(r) += fg;
@@ -649,12 +619,8 @@ void sub_mix::backward(tape_t *t, node *n) {
   variable l{t, n->ls_.front()};
   variable r{t, n->rs_.front()};
 
-  if (!grad(l).is_alive()) {
-    grad(l) = t->new_variable(0.0);
-  }
-  if (!grad(r).is_alive()) {
-    grad(r) = t->new_variable(0.0);
-  }
+  backward_set_grad_if_not_alive(l);
+  backward_set_grad_if_not_alive(r);
 
   grad(l) += fg;
   grad(r) -= fg;
@@ -669,17 +635,8 @@ void mul_mix::backward(tape_t *t, node *n) {
   auto dfdl = [&]() { return r * fg; };
   auto dfdr = [&]() { return l * fg; };
 
-  if (grad(l).is_alive())
-    grad(l) += dfdl();
-  else {
-    grad(l) = dfdl();
-  }
-
-  if (grad(r).is_alive())
-    grad(r) += dfdr();
-  else {
-    grad(r) = dfdr();
-  }
+  backward_grad_accumulate(l, dfdl);
+  backward_grad_accumulate(r, dfdr);
 }
 
 void div_mix::backward(tape_t *t, node *n) {
@@ -688,15 +645,15 @@ void div_mix::backward(tape_t *t, node *n) {
   variable l{t, n->ls_.front()};
   variable r{t, n->rs_.front()};
 
-  if (grad(l).is_alive())
-    grad(l) += fg / r;
-  else
-    grad(l) = fg / r;
+  auto dfdl = [&]() { return fg / r; };
+  auto dfdr = [&]() { return fg * l / (r * r); };
+
+  backward_grad_accumulate(l, dfdl);
 
   if (grad(r).is_alive())
-    grad(r) -= fg * l / (r * r);
+    grad(r) -= dfdr(); // negative sign
   else
-    grad(r) = -fg * l / (r * r);
+    grad(r) = -dfdr();
 }
 
 void pow_mix::backward(tape_t *t, node *n) {
@@ -708,17 +665,8 @@ void pow_mix::backward(tape_t *t, node *n) {
   auto dfdl = [&]() { return fg * (r * pow(l, r - 1.0)); };
   auto dfdr = [&]() { return fg * f * log(l); };
 
-  if (grad(l).is_alive())
-    grad(l) += dfdl();
-  else {
-    grad(l) = dfdl();
-  }
-
-  if (grad(r).is_alive())
-    grad(r) += dfdr();
-  else {
-    grad(r) = dfdr();
-  }
+  backward_grad_accumulate(l, dfdl);
+  backward_grad_accumulate(r, dfdr);
 }
 
 void backward_impl(tape_t *t, node *n) {
