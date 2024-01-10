@@ -47,16 +47,16 @@ void test_01() {
 
   tape_t t;
 
-  const var x = t.new_variable(3.0);
-  var y = t.new_variable(5.0);
+  const var_t x = t.new_variable(3.0);
+  var_t y = t.new_variable(5.0);
 
-  var f = (x * x * x * x * x * x * x * x);
+  var_t f = (x * x * x * x * x * x * x * x);
 
   t.push_state();
   AKS_CHECK_VARIABLE(x, 3);
   AKS_CHECK_VARIABLE(y, 5);
   AKS_CHECK_VARIABLE(f, 6561);
-  vec_t<real_t> expected = {17496,  40824,  81648, 136080, 181440,
+  vec_t<re_t> expected = {17496,  40824,  81648, 136080, 181440,
                             181440, 120960, 40320, 0};
 
   for (int i = 0; i < 9; ++i) {
@@ -106,16 +106,16 @@ void test_02() {
   std::cout << "\ntest_02" << std::endl;
   using namespace aks;
   tape_t t;
-  const var x = t.new_variable(3.0);
-  const var y = t.new_variable(8.0);
+  const var_t x = t.new_variable(3.0);
+  const var_t y = t.new_variable(8.0);
 
-  var f = pow(x, y);
+  var_t f = pow(x, y);
 
   t.push_state();
   AKS_CHECK_VARIABLE(x, 3);
   AKS_CHECK_VARIABLE(y, 8);
   AKS_CHECK_VARIABLE(f, 6561);
-  vec_t<real_t> expected = {17496,  40824,  81648, 136080, 181440,
+  vec_t<re_t> expected = {17496,  40824,  81648, 136080, 181440,
                             181440, 120960, 40320, 0};
 
   for (int i = 0; i < 9; ++i) {
@@ -133,14 +133,14 @@ void test_03() {
   std::cout << "\ntest_03" << std::endl;
   using namespace aks;
   tape_t t;
-  const var x = t.new_variable(3.0);
+  const var_t x = t.new_variable(3.0);
 
-  var f = pow(x, 8.0);
+  var_t f = pow(x, 8.0);
 
   t.push_state();
   AKS_CHECK_VARIABLE(x, 3);
   AKS_CHECK_VARIABLE(f, 6561);
-  vec_t<real_t> expected = {17496,  40824,  81648, 136080, 181440,
+  vec_t<re_t> expected = {17496,  40824,  81648, 136080, 181440,
                             181440, 120960, 40320, 0};
 
   for (int i = 0; i < 9; ++i) {
@@ -158,14 +158,14 @@ void test_04() {
   std::cout << "\ntest_04" << std::endl;
   using namespace aks;
   tape_t t;
-  const var x = t.new_variable(3.0);
+  const var_t x = t.new_variable(3.0);
 
-  var f = exp(log(exp(log(exp(log(x))))));
+  var_t f = exp(log(exp(log(exp(log(x))))));
 
   t.push_state();
   AKS_CHECK_VARIABLE(x, 3);
   AKS_CHECK_VARIABLE(f, 3);
-  vec_t<real_t> expected = {1, 0, 0};
+  vec_t<re_t> expected = {1, 0, 0};
 
   for (int i = 0; i < 3; ++i) {
     t.zero_grad();
@@ -182,14 +182,14 @@ void test_05() {
   std::cout << "\ntest_05" << std::endl;
   using namespace aks;
   tape_t t;
-  const var x = t.new_variable(1);
+  const var_t x = t.new_variable(1);
 
-  var f = exp(exp(x));
+  var_t f = exp(exp(x));
 
   t.push_state();
   AKS_CHECK_VARIABLE(x, 1);
   AKS_CHECK_VARIABLE(f, 15.1542622415);
-  vec_t<real_t> expected = {
+  vec_t<re_t> expected = {
       41.1935556747, 153.169249515,     681.502130990,
       3478.70705883, 19853.4050763,     124537.473663,
       848181.148608, 6213971.481006121, 48615295.31226263};
@@ -209,14 +209,14 @@ void test_06_01() {
   std::cout << "\ntest_06_01" << std::endl;
   using namespace aks;
   tape_t t;
-  const var x = t.new_variable(std::numbers::pi_v<real_t> / 2.0);
+  const var_t x = t.new_variable(std::numbers::pi_v<re_t> / 2.0);
 
-  var f = sin(x);
+  var_t f = sin(x);
 
   t.push_state();
-  AKS_CHECK_VARIABLE(x, std::numbers::pi_v<real_t> / 2.0);
+  AKS_CHECK_VARIABLE(x, std::numbers::pi_v<re_t> / 2.0);
   AKS_CHECK_VARIABLE(f, 1);
-  vec_t<real_t> expected = {0, -1, 0, 1, 0, -1, 0, 1, 0};
+  vec_t<re_t> expected = {0, -1, 0, 1, 0, -1, 0, 1, 0};
 
   for (int i = 0; i < 9; ++i) {
     t.zero_grad();
@@ -233,14 +233,14 @@ void test_06_02() {
   std::cout << "\ntest_06_02" << std::endl;
   using namespace aks;
   tape_t t;
-  const var x = t.new_variable(std::numbers::pi_v<real_t> / 2.0);
+  const var_t x = t.new_variable(std::numbers::pi_v<re_t> / 2.0);
 
-  var f = cos(x);
+  var_t f = cos(x);
 
   t.push_state();
-  AKS_CHECK_VARIABLE(x, std::numbers::pi_v<real_t> / 2.0);
+  AKS_CHECK_VARIABLE(x, std::numbers::pi_v<re_t> / 2.0);
   AKS_CHECK_VARIABLE(f, 0);
-  vec_t<real_t> expected = {-1, 0, 1, 0, -1, 0, 1, 0, -1};
+  vec_t<re_t> expected = {-1, 0, 1, 0, -1, 0, 1, 0, -1};
 
   for (int i = 0; i < 9; ++i) {
     t.zero_grad();
@@ -257,15 +257,15 @@ void test_07() {
   std::cout << "\ntest_07" << std::endl;
   using namespace aks;
   tape_t t;
-  const var x = t.new_variable(2);
+  const var_t x = t.new_variable(2);
 
-  var f =
+  var_t f =
       ((sin(x) ^ 2.0) / (log(x + 50) ^ 2.0)) * (1.0 - (exp(x) ^ (-x))) + cos(x);
 
   t.push_state();
   AKS_CHECK_VARIABLE(x, 2);
   AKS_CHECK_VARIABLE(f, -0.364157274408385);
-  vec_t<real_t> expected = {
+  vec_t<re_t> expected = {
       -0.953510374699207, 0.314131605670404,  1.160290265129676,
       -0.127327515031308, -2.350487124618407, 3.030458853334027,
       -1.213075727292083, -63.66425006790054, 463.4642048661533};
@@ -286,17 +286,17 @@ void test_08() {
   std::cout << "\ntest_08" << std::endl;
   using namespace aks;
   tape_t t;
-  const var x = t.new_variable(2);
-  const var y = t.new_variable(3);
+  const var_t x = t.new_variable(2);
+  const var_t y = t.new_variable(3);
 
-  var f =
+  var_t f =
       (x ^ y) * exp(x) * exp(y) / (log(y) - (y ^ -0.5)) + sin(cos(x) * y * 0.5);
 
   t.push_state();
   AKS_CHECK_VARIABLE(x, 2);
   AKS_CHECK_VARIABLE(y, 3);
   AKS_CHECK_VARIABLE(f, 2277.166893402295);
-  vec_t<real_t> expected = {
+  vec_t<re_t> expected = {
       5693.271663432962, 12529.22628253501, 24487.49989506043,
       43265.42685712199, 70607.95619169925, 108326.8348413039,
       157615.1751647243, 218966.3917658434, 304763.4639907167};
@@ -316,16 +316,16 @@ void test_09() {
   std::cout << "\ntest_09" << std::endl;
   using namespace aks;
   tape_t t;
-  const var x = t.new_variable(2);
-  const var y = t.new_variable(3);
+  const var_t x = t.new_variable(2);
+  const var_t y = t.new_variable(3);
 
-  var f = sin(y * tanh(x / 4)) / tanh(y / 6);
+  var_t f = sin(y * tanh(x / 4)) / tanh(y / 6);
 
   t.push_state();
   AKS_CHECK_VARIABLE(x, 2);
   AKS_CHECK_VARIABLE(y, 3);
   AKS_CHECK_VARIABLE(f, 2.127248903688577);
-  vec_t<real_t> expected = {
+  vec_t<re_t> expected = {
       0.234088640404172, -0.794171421323257, 0.421052063524680,
       0.403203519062006, -0.966405900729128, 0.315910699048416,
       1.943245437957466, -3.596458737095583, -1.901001142886110};
@@ -345,17 +345,17 @@ void test_10() {
   std::cout << "\ntest_10" << std::endl;
   using namespace aks;
   tape_t t;
-  const var x = t.new_variable(2);
-  const var y = t.new_variable(3);
+  const var_t x = t.new_variable(2);
+  const var_t y = t.new_variable(3);
 
-  var f = (x ^ y) * exp(x) * exp(y) / (log(y) - (1.0 / sqrt(y))) +
+  var_t f = (x ^ y) * exp(x) * exp(y) / (log(y) - (1.0 / sqrt(y))) +
                sin(cos(x) * y * 0.5);
 
   t.push_state();
   AKS_CHECK_VARIABLE(x, 2);
   AKS_CHECK_VARIABLE(y, 3);
   AKS_CHECK_VARIABLE(f, 2277.166893402295);
-  vec_t<real_t> expected = {
+  vec_t<re_t> expected = {
       5693.271663432962, 12529.22628253501, 24487.49989506043,
       43265.42685712199, 70607.95619169925, 108326.8348413039,
       157615.1751647243, 218966.3917658434, 304763.4639907167};
@@ -375,14 +375,14 @@ void test_11() {
   std::cout << "\ntest_11" << std::endl;
   using namespace aks;
   tape_t t;
-  const var x = t.new_variable(0.5);
+  const var_t x = t.new_variable(0.5);
 
-  var f = relu(relu(relu(x)));
+  var_t f = relu(relu(relu(x)));
 
   t.push_state();
   AKS_CHECK_VARIABLE(x, 0.5);
   AKS_CHECK_VARIABLE(f, 0.5);
-  vec_t<real_t> expected = {1, 0, 0};
+  vec_t<re_t> expected = {1, 0, 0};
 
   for (int i = 0; i < 3; ++i) {
     t.zero_grad();
@@ -399,14 +399,14 @@ void test_12() {
   std::cout << "\ntest_12" << std::endl;
   using namespace aks;
   tape_t t;
-  const var x = t.new_variable(-0.5);
+  const var_t x = t.new_variable(-0.5);
 
-  var f = relu(relu(relu(x)));
+  var_t f = relu(relu(relu(x)));
 
   t.push_state();
   AKS_CHECK_VARIABLE(x, -0.5);
   AKS_CHECK_VARIABLE(f, 0);
-  vec_t<real_t> expected = {0, 0, 0};
+  vec_t<re_t> expected = {0, 0, 0};
 
   for (int i = 0; i < 3; ++i) {
     t.zero_grad();
@@ -423,10 +423,10 @@ void test_13() {
   std::cout << "\ntest_13" << std::endl;
   using namespace aks;
   tape_t t;
-  const var x = t.new_variable(2);
-  const var y = t.new_variable(3);
+  const var_t x = t.new_variable(2);
+  const var_t y = t.new_variable(3);
 
-  var f = (x ^ y) * exp(x) * exp(y) / (log(y) - (1.0 / sqrt(y))) +
+  var_t f = (x ^ y) * exp(x) * exp(y) / (log(y) - (1.0 / sqrt(y))) +
                sin(cos(x) * y * 0.5);
 
   f = f * f;
@@ -435,7 +435,7 @@ void test_13() {
   AKS_CHECK_VARIABLE(x, 2);
   AKS_CHECK_VARIABLE(y, 3);
   AKS_CHECK_VARIABLE(f, 5185489.060407462);
-  vec_t<real_t> expected = {
+  vec_t<re_t> expected = {
       25929059.49422991, 121888963.0483667, 539517981.8810239,
       2254246176.856630, 8920979033.396202, 33572462599.63692,
       120670307539.7625, 416043043171.6418, 1381489125066.02686};
@@ -455,10 +455,10 @@ void test_14() {
   std::cout << "\ntest_14" << std::endl;
   using namespace aks;
   tape_t t;
-  const var x = t.new_variable(0.25);
-  const var y = t.new_variable(0.5);
+  const var_t x = t.new_variable(0.25);
+  const var_t y = t.new_variable(0.5);
 
-  var f = (x ^ y) / (log(y) - (1.0 / sqrt(y))) + sin(cos(x));
+  var_t f = (x ^ y) / (log(y) - (1.0 / sqrt(y))) + sin(cos(x));
 
   f = sqrt(f);
 
@@ -466,7 +466,7 @@ void test_14() {
   AKS_CHECK_VARIABLE(x, 0.25);
   AKS_CHECK_VARIABLE(y, 0.5);
   AKS_CHECK_VARIABLE(f, 0.766163700778299);
-  vec_t<real_t> expected = {-0.401093405500755, 1.843951799064022e-02,
+  vec_t<re_t> expected = {-0.401093405500755, 1.843951799064022e-02,
                             -3.976997195889043, 27.94021527444540,
                             -443.0134618423613, 7768.010873937546,
                             -172271.1423942442, 4465339.597362671};
@@ -486,9 +486,9 @@ void test_15() {
   std::cout << "\ntest_15" << std::endl;
   using namespace aks;
   tape_t t;
-  const var x = t.new_variable(2);
-  const var y = t.new_variable(3);
-  const var z = t.new_variable(5);
+  const var_t x = t.new_variable(2);
+  const var_t y = t.new_variable(3);
+  const var_t z = t.new_variable(5);
 
   auto F = [&]() {
     return ((x + z) ^ y) * exp(0.25 * sqrt(z) * y * x) * exp(0.25 * (y + x)) /
@@ -498,13 +498,13 @@ void test_15() {
 
   {
     t.push_state();
-    var f = F();
+    var_t f = F();
 
     AKS_CHECK_VARIABLE(x, 2);
     AKS_CHECK_VARIABLE(y, 3);
     AKS_CHECK_VARIABLE(z, 5);
     AKS_CHECK_VARIABLE(f, 28524.51801677098);
-    vec_t<real_t> expected = {60026.82047554181, 129114.1367025926,
+    vec_t<re_t> expected = {60026.82047554181, 129114.1367025926,
                               278095.5325188761, 602778.7382787745,
                               1314895.486871684, 2690006.380087323,
                               5081703.820602682, 25346219.35630465};
@@ -521,13 +521,13 @@ void test_15() {
   }
   {
     t.push_state();
-    var f = F();
+    var_t f = F();
 
     AKS_CHECK_VARIABLE(x, 2);
     AKS_CHECK_VARIABLE(y, 3);
     AKS_CHECK_VARIABLE(z, 5);
     AKS_CHECK_VARIABLE(f, 28524.51801677098);
-    vec_t<real_t> expected = {88164.61349317656, 275673.9023954568,
+    vec_t<re_t> expected = {88164.61349317656, 275673.9023954568,
                               868833.1020929292, 2754733.9246692426};
 
     for (int i = 0; i < 2; ++i) {
@@ -542,13 +542,13 @@ void test_15() {
   }
   {
     t.push_state();
-    var f = F();
+    var_t f = F();
 
     AKS_CHECK_VARIABLE(x, 2);
     AKS_CHECK_VARIABLE(y, 3);
     AKS_CHECK_VARIABLE(z, 5);
     AKS_CHECK_VARIABLE(f, 28524.51801677098);
-    vec_t<real_t> expected = {21792.84737554386, 13945.72372321069,
+    vec_t<re_t> expected = {21792.84737554386, 13945.72372321069,
                               7309.719265308730, 3064.054319595382,
                               1006.296282742556};
 
@@ -571,12 +571,12 @@ void test_16() {
 
   tape_t t;
 
-  const var x = t.new_variable(2);
-  const var y = t.new_variable(3);
-  const var z = t.new_variable(4);
+  const var_t x = t.new_variable(2);
+  const var_t y = t.new_variable(3);
+  const var_t z = t.new_variable(4);
 
   auto F = [&]() {
-    var f = (z * (x + y));
+    var_t f = (z * (x + y));
     for (int i = 0; i < 3; ++i) {
       f *= f;
     }
@@ -586,14 +586,14 @@ void test_16() {
   {
 
     t.push_state();
-    var f = F();
+    var_t f = F();
 
     AKS_CHECK_VARIABLE(x, 2);
     AKS_CHECK_VARIABLE(y, 3);
     AKS_CHECK_VARIABLE(z, 4);
     AKS_CHECK_VARIABLE(f, 2560000);
 
-    vec_t<real_t> expected = {
+    vec_t<re_t> expected = {
         4096000,     5734400,     6881280,     6881280, 5505024,
         3303014.400, 1321205.760, 264241.1520, 0,       0};
 
@@ -611,14 +611,14 @@ void test_16() {
   {
 
     t.push_state();
-    var f = F();
+    var_t f = F();
 
     AKS_CHECK_VARIABLE(x, 2);
     AKS_CHECK_VARIABLE(y, 3);
     AKS_CHECK_VARIABLE(z, 4);
     AKS_CHECK_VARIABLE(f, 2560000);
 
-    vec_t<real_t> expected = {
+    vec_t<re_t> expected = {
         4096000,     5734400,     6881280,     6881280, 5505024,
         3303014.400, 1321205.760, 264241.1520, 0,       0};
 
@@ -636,14 +636,14 @@ void test_16() {
   {
 
     t.push_state();
-    var f = F();
+    var_t f = F();
 
     AKS_CHECK_VARIABLE(x, 2);
     AKS_CHECK_VARIABLE(y, 3);
     AKS_CHECK_VARIABLE(z, 4);
     AKS_CHECK_VARIABLE(f, 2560000);
 
-    vec_t<real_t> expected = {5120000,  8960000, 13440000, 16800000, 16800000,
+    vec_t<re_t> expected = {5120000,  8960000, 13440000, 16800000, 16800000,
                               12600000, 6300000, 1575000,  0,        0};
 
     for (int i = 0; i < 4; ++i) {
@@ -665,16 +665,16 @@ void test_17() {
 
   tape_t t;
 
-  const var x = t.new_variable(2);
-  const var y = t.new_variable(3);
-  const var z = t.new_variable(4);
+  const var_t x = t.new_variable(2);
+  const var_t y = t.new_variable(3);
+  const var_t z = t.new_variable(4);
 
   auto F = [&]() {
-    var f = (z * (x + y));
+    var_t f = (z * (x + y));
     for (int i = 0; i < 2; ++i) {
       f *= f;
     }
-    var f2 = (z - x) * y;
+    var_t f2 = (z - x) * y;
     for (int i = 0; i < 1; ++i) {
       f2 *= f2;
     }
@@ -685,14 +685,14 @@ void test_17() {
 
   {
     t.push_state();
-    var f = F();
+    var_t f = F();
 
     AKS_CHECK_VARIABLE(x, 2);
     AKS_CHECK_VARIABLE(y, 3);
     AKS_CHECK_VARIABLE(z, 4);
     AKS_CHECK_VARIABLE(f, 4444.444444444444);
 
-    vec_t<real_t> expected = {8000,   15911.11111111111, 36586.66666666666,
+    vec_t<re_t> expected = {8000,   15911.11111111111, 36586.66666666666,
                               98784,  310986.6666666667, 1125040,
                               4609920};
 
@@ -711,14 +711,14 @@ void test_17() {
   {
 
     t.push_state();
-    var f = F();
+    var_t f = F();
 
     AKS_CHECK_VARIABLE(x, 2);
     AKS_CHECK_VARIABLE(y, 3);
     AKS_CHECK_VARIABLE(z, 4);
     AKS_CHECK_VARIABLE(f, 4444.444444444444);
 
-    vec_t<real_t> expected = {592.5925925925926,  355.5555555555555,
+    vec_t<re_t> expected = {592.5925925925926,  355.5555555555555,
                               -252.8395061728395, 370.8312757201646,
                               -674.2386831275720, 1460.850480109739,
                               -3670.855052583448};
@@ -737,14 +737,14 @@ void test_17() {
   {
 
     t.push_state();
-    var f = F();
+    var_t f = F();
 
     AKS_CHECK_VARIABLE(x, 2);
     AKS_CHECK_VARIABLE(y, 3);
     AKS_CHECK_VARIABLE(z, 4);
     AKS_CHECK_VARIABLE(f, 4444.444444444444);
 
-    vec_t<real_t> expected = {0,      1111.111111111111,  -1666.666666666667,
+    vec_t<re_t> expected = {0,      1111.111111111111,  -1666.666666666667,
                               3750,   -10416.66666666667, 34375,
                               -131250};
 
@@ -764,16 +764,16 @@ void test_18() {
   std::cout << "\ntest_18" << std::endl;
   using namespace aks;
   tape_t t;
-  const var x = t.new_variable(2);
+  const var_t x = t.new_variable(2);
 
-  var f =
+  var_t f =
       ((sin(x) ^ 2.0) / (log(x + 50) ^ 2.0)) * tanh((1.0 - (exp(x) ^ (-x)))) +
       cos(x);
 
   t.push_state();
   AKS_CHECK_VARIABLE(x, 2);
   AKS_CHECK_VARIABLE(f, -0.376226238713693);
-  vec_t<real_t> expected = {-0.944550600009225, 0.344604639299095,
+  vec_t<re_t> expected = {-0.944550600009225, 0.344604639299095,
                             1.084903225704792,  -0.203449504037272,
                             -1.677246351875284, 0.706056911049653,
                             0.669408525907504,  -6.722648455610035};
@@ -794,21 +794,21 @@ void test_19() {
   std::cout << "\ntest_19" << std::endl;
   using namespace aks;
 
-  auto NR = [](real_t guess, auto f, real_t tolerance = 1e-6) {
+  auto NR = [](re_t guess, auto f, re_t tolerance = 1e-6) {
     tape_t tape;
 
-    auto derivative = [&tape](var fx, var x) {
+    auto derivative = [&tape](var_t fx, var_t x) {
       tape.push_state();
       tape.zero_grad();
       backward(fx);
-      var dfdx = grad(x);
+      var_t dfdx = grad(x);
       double r_dfdx = dfdx.value();
       tape.pop_state();
       return r_dfdx;
     };
 
-    var x = tape.new_variable(guess);
-    var fx = f(x);
+    var_t x = tape.new_variable(guess);
+    var_t fx = f(x);
 
     while (std::abs(fx.value()) > tolerance) {
       x = x - fx / derivative(fx, x);
@@ -835,9 +835,9 @@ void test_20() {
 
   tape_t t;
 
-  var x = t.new_variable(2.0);
-  var y = t.new_variable(3.0);
-  var z = t.new_variable(5.0);
+  var_t x = t.new_variable(2.0);
+  var_t y = t.new_variable(3.0);
+  var_t z = t.new_variable(5.0);
 
   AKS_CHECK_VARIABLE(x, 2.0);
   AKS_CHECK_VARIABLE(y, 3.0);
@@ -845,7 +845,7 @@ void test_20() {
 
   auto DIFF = [&](size_t I, size_t J, size_t K) {
     t.push_state();
-    var f = (x * y * z) ^ 4;
+    var_t f = (x * y * z) ^ 4;
 
     for (size_t i = 0; i < I; ++i) {
       t.zero_grad();
@@ -939,9 +939,9 @@ void test_21() {
 
   tape_t t;
 
-  var x = t.new_variable(2.0);
-  var y = t.new_variable(3.0);
-  var z = t.new_variable(5.0);
+  var_t x = t.new_variable(2.0);
+  var_t y = t.new_variable(3.0);
+  var_t z = t.new_variable(5.0);
 
   AKS_CHECK_VARIABLE(x, 2.0);
   AKS_CHECK_VARIABLE(y, 3.0);
@@ -949,7 +949,7 @@ void test_21() {
 
   auto DIFF = [&](size_t I, size_t J, size_t K) {
     t.push_state();
-    var f = ((z + (x * y)) ^ 4) / ((z - ((x * y) ^ 4)));
+    var_t f = ((z + (x * y)) ^ 4) / ((z - ((x * y) ^ 4)));
     for (size_t k = 0; k < K; ++k) {
       t.zero_grad();
       backward(f);
@@ -1006,9 +1006,9 @@ void test_22() {
 
   tape_t t;
 
-  var x = t.new_variable(2.0);
-  var y = t.new_variable(3.0);
-  var z = t.new_variable(5.0);
+  var_t x = t.new_variable(2.0);
+  var_t y = t.new_variable(3.0);
+  var_t z = t.new_variable(5.0);
 
   AKS_CHECK_VARIABLE(x, 2.0);
   AKS_CHECK_VARIABLE(y, 3.0);
@@ -1016,7 +1016,7 @@ void test_22() {
 
   auto DIFF = [&](size_t I, size_t J, size_t K) {
     t.push_state();
-    var f = (z * (sin(x + y) + cos(x - y))) / (log(x) * tanh(y) * exp(z));
+    var_t f = (z * (sin(x + y) + cos(x - y))) / (log(x) * tanh(y) * exp(z));
     for (size_t k = 0; k < K; ++k) {
       t.zero_grad();
       backward(f);
@@ -1073,9 +1073,9 @@ void test_23() {
 
   tape_t t;
 
-  var x = t.new_variable(2.0);
-  var y = t.new_variable(3.0);
-  var z = t.new_variable(5.0);
+  var_t x = t.new_variable(2.0);
+  var_t y = t.new_variable(3.0);
+  var_t z = t.new_variable(5.0);
 
   AKS_CHECK_VARIABLE(x, 2.0);
   AKS_CHECK_VARIABLE(y, 3.0);
@@ -1083,7 +1083,7 @@ void test_23() {
 
   auto DIFF = [&](size_t I, size_t J, size_t K) {
     t.push_state();
-    var f = (((x * y) ^ 2.0) + ((x ^ z) - (y ^ z))) / (sqrt(z - x));
+    var_t f = (((x * y) ^ 2.0) + ((x ^ z) - (y ^ z))) / (sqrt(z - x));
     for (size_t k = 0; k < K; ++k) {
       t.zero_grad();
       backward(f);
@@ -1177,9 +1177,9 @@ void test_24_01() {
 
   tape_t t;
 
-  var x = t.new_variable(2.0);
-  var y = t.new_variable(3.0);
-  var z = t.new_variable(5.0);
+  var_t x = t.new_variable(2.0);
+  var_t y = t.new_variable(3.0);
+  var_t z = t.new_variable(5.0);
 
   AKS_CHECK_VARIABLE(x, 2.0);
   AKS_CHECK_VARIABLE(y, 3.0);
@@ -1187,7 +1187,7 @@ void test_24_01() {
 
   auto DIFF = [&](size_t I, size_t J, size_t K) {
     t.push_state();
-    var f = tanh(x * tanh(sqrt(z - x)));
+    var_t f = tanh(x * tanh(sqrt(z - x)));
     ;
     for (size_t k = 0; k < K; ++k) {
       t.zero_grad();
@@ -1235,9 +1235,9 @@ void test_24_02() {
 
   tape_t t;
 
-  var x = t.new_variable(2.0);
-  var y = t.new_variable(3.0);
-  var z = t.new_variable(5.0);
+  var_t x = t.new_variable(2.0);
+  var_t y = t.new_variable(3.0);
+  var_t z = t.new_variable(5.0);
 
   AKS_CHECK_VARIABLE(x, 2.0);
   AKS_CHECK_VARIABLE(y, 3.0);
@@ -1245,7 +1245,7 @@ void test_24_02() {
 
   auto DIFF = [&](size_t I, size_t J, size_t K) {
     t.push_state();
-    var f = sqrt(x * exp(y - log(z)));
+    var_t f = sqrt(x * exp(y - log(z)));
     for (size_t k = 0; k < K; ++k) {
       t.zero_grad();
       backward(f);
@@ -1341,13 +1341,13 @@ void test_25() {
 
   auto to_variable = [&](double v) { return t.new_variable(v); };
 
-  vec_t<var> xs = zipped_op(to_variable, reals_t{2.0, 3.0, 5.0});
-  vec_t<var> ys = zipped_op(to_variable, reals_t{7.0, 11.0, 13.0});
+  vec_t<var_t> xs = zipped_op(to_variable, vec_re_t{2.0, 3.0, 5.0});
+  vec_t<var_t> ys = zipped_op(to_variable, vec_re_t{7.0, 11.0, 13.0});
 
   AKS_CHECK_PRINT(t.nodes_.size(), t.nodes_.size(), 6);
   AKS_CHECK_PRINT(t.grads_.size(), t.grads_.size(), 0);
 
-  var d = dot(xs, ys);
+  var_t d = dot(xs, ys);
 
   AKS_CHECK_VARIABLE(d, 112.0);
 
@@ -1359,7 +1359,7 @@ void test_25() {
   AKS_CHECK_VARIABLE(grad(xs[0]), 7.0);
   AKS_CHECK_VARIABLE(grad(ys[1]), 3.0);
 
-  var s = asum(ys);
+  var_t s = asum(ys);
   AKS_CHECK_VARIABLE(s, 31.0);
 
   AKS_CHECK_PRINT(t.nodes_.size(), t.nodes_.size(), 15);
@@ -1370,7 +1370,7 @@ void test_25() {
   AKS_CHECK_VARIABLE(grad(xs[0]), 0.0);
   AKS_CHECK_VARIABLE(grad(ys[1]), 1.0);
 
-  var g = gsum(xs);
+  var_t g = gsum(xs);
   AKS_CHECK_VARIABLE(g, 30.0);
 
   AKS_CHECK_PRINT(t.nodes_.size(), t.nodes_.size(), 62);
@@ -1379,7 +1379,7 @@ void test_25() {
   // backward(g);
   // AKS_CHECK_VARIABLE(grad(xs[0]), 15.0);
 
-  var mx = max(xs);
+  var_t mx = max(xs);
   AKS_CHECK_VARIABLE(mx, 5.0);
 
   AKS_CHECK_PRINT(t.nodes_.size(), t.nodes_.size(), 62);
@@ -1388,7 +1388,7 @@ void test_25() {
   // backward(mx);
   // AKS_CHECK_VARIABLE(grad(xs[0]), 0.0);
 
-  var mn = min(xs);
+  var_t mn = min(xs);
   AKS_CHECK_VARIABLE(mn, 2.0);
 
   AKS_CHECK_PRINT(t.nodes_.size(), t.nodes_.size(), 62);
@@ -1397,7 +1397,7 @@ void test_25() {
   // backward(mn);
   // AKS_CHECK_VARIABLE(grad(xs[0]), 1.0);
 
-  var mm = mean(ys);
+  var_t mm = mean(ys);
   AKS_CHECK_VARIABLE(mm, 10.3333333);
 
   AKS_CHECK_PRINT(t.nodes_.size(), t.nodes_.size(), 65);
@@ -1406,7 +1406,7 @@ void test_25() {
   // backward(mm);
   // AKS_CHECK_VARIABLE(grad(ys[0]), 1.0);
 
-  var gm = gmean(xs);
+  var_t gm = gmean(xs);
   AKS_CHECK_VARIABLE(gm, 10.0);
 
   AKS_CHECK_PRINT(t.nodes_.size(), t.nodes_.size(), 68);
