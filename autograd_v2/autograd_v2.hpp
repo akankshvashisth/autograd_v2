@@ -33,8 +33,6 @@ template <typename T> using vec_t = std::vector<T>;
 template <typename T> using deq_t = std::deque<T>;
 template <typename T, size_t N> using arr_t = std::array<T, N>;
 template <typename T> using stack_t = std::stack<T, std::vector<T>>;
-using re_t = double;
-using vec_re_t = vec_t<re_t>;
 using idx_t = size_t;
 constexpr idx_t const sntnl_idx = std::numeric_limits<idx_t>::max();
 
@@ -73,7 +71,7 @@ template <typename real_t> struct var_t {
 
   var_t clone() const { return var_t{value(), t_}; }
 
-  re_t value() const;
+  value_type value() const;
 
   tape_type &t() { return *t_; }
   tape_type &t() const { return *t_; }
@@ -125,7 +123,7 @@ template <typename real_t> struct tape_t {
     return ret;
   }
 
-  var_t<re_t> new_variable(value_type const &r) {
+  var_t<value_type> new_variable(value_type const &r) {
     node_type *n = new_node();
     n->v_ = r;
     return {this, n};
@@ -489,7 +487,9 @@ template <typename real_t> var_t<real_t>::var_t(real_t r, tape_t<real_t> *t) {
   n_ = t_->new_variable(r).np();
 }
 
-template <typename real_t> re_t var_t<real_t>::value() const { return n().v_; }
+template <typename real_t> real_t var_t<real_t>::value() const {
+  return n().v_;
+}
 
 template <typename real_t>
 var_t<real_t> &var_t<real_t>::operator+=(var_t<real_t> const &r) {
@@ -808,8 +808,8 @@ template <typename real_t> void backward(var_t<real_t> v) {
   }
 
   for (size_t idx = v.n().idx_ + 1; idx != 0; --idx) {
-    node<re_t> *n = &(v.t().nodes_[idx - 1]);
-    var_t<re_t> n_ = {&v.t(), n};
+    node<real_t> *n = &(v.t().nodes_[idx - 1]);
+    var_t<real_t> n_ = {&v.t(), n};
     if (!grad(n_).is_alive()) {
       grad(n_) = v.t().new_variable(0.0);
     }
