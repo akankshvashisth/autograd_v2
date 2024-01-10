@@ -99,9 +99,9 @@ private:
   node_type *n_ = nullptr;
 };
 
-typedef void (*back_f_t)(tape_t<re_t> *, node<re_t> *);
-
-struct back_f {
+template <typename real_t> struct back_f {
+  using value_type = real_t;
+  typedef void (*back_f_t)(tape_t<value_type> *, node<value_type> *);
   const char *n_ = nullptr;
   back_f_t f_ = nullptr;
 };
@@ -109,7 +109,7 @@ struct back_f {
 template <typename real_t> struct node {
   using value_type = real_t;
   value_type v_ = value_type{};
-  back_f backwards_;
+  back_f<value_type> backwards_;
   vec_t<node<value_type> *> ls_, rs_;
   idx_t idx_ = sntnl_idx;
   bool is_leaf() const { return ls_.empty() && rs_.empty(); }
@@ -171,85 +171,85 @@ auto const &grad(var_t<re_t> const &n) { return n.t().grads_[n.n().idx_]; }
 
 struct exp_mix {
   static re_t apply(re_t a) { CHECK_NAN(std::exp(a)); }
-  static back_f bf() { return {"exp", backward}; }
+  static back_f<re_t> bf() { return {"exp", backward}; }
   static void backward(tape_t<re_t> *t, node<re_t> *n);
 };
 
 struct log_mix {
   static re_t apply(re_t a) { CHECK_NAN(std::log(a)); }
-  static back_f bf() { return {"log", backward}; }
+  static back_f<re_t> bf() { return {"log", backward}; }
   static void backward(tape_t<re_t> *t, node<re_t> *n);
 };
 
 struct tanh_mix {
   static re_t apply(re_t a) { return std::tanh(a); }
-  static back_f bf() { return {"tanh", backward}; }
+  static back_f<re_t> bf() { return {"tanh", backward}; }
   static void backward(tape_t<re_t> *t, node<re_t> *n);
 };
 
 struct neg_mix {
   static re_t apply(re_t a) { return -a; }
-  static back_f bf() { return {"neg", backward}; }
+  static back_f<re_t> bf() { return {"neg", backward}; }
   static void backward(tape_t<re_t> *t, node<re_t> *n);
 };
 
 struct sin_mix {
   static re_t apply(re_t a) { CHECK_NAN(std::sin(a)); }
-  static back_f bf() { return {"sin", backward}; }
+  static back_f<re_t> bf() { return {"sin", backward}; }
   static void backward(tape_t<re_t> *t, node<re_t> *n);
 };
 
 struct cos_mix {
   static re_t apply(re_t a) { CHECK_NAN(std::cos(a)); }
-  static back_f bf() { return {"cos", backward}; }
+  static back_f<re_t> bf() { return {"cos", backward}; }
   static void backward(tape_t<re_t> *t, node<re_t> *n);
 };
 
 struct sqrt_mix {
   static re_t apply(re_t a) { CHECK_NAN(std::sqrt(a)); }
-  static back_f bf() { return {"sqrt", backward}; }
+  static back_f<re_t> bf() { return {"sqrt", backward}; }
   static void backward(tape_t<re_t> *t, node<re_t> *n);
 };
 
 struct relu_mix {
   static re_t apply(re_t a) { return (a > re_t(0.0)) ? a : re_t(0.0); }
-  static back_f bf() { return {"relu", backward}; }
+  static back_f<re_t> bf() { return {"relu", backward}; }
   static void backward(tape_t<re_t> *t, node<re_t> *n);
 };
 
 // struct id_mix {
 //   static re_t apply(re_t a) { return a; }
-//   static back_f bf() { return {"id", backward}; }
+//   static back_f<re_t> bf() { return {"id", backward}; }
 //   static void backward(tape_t<re_t>*t, node<re_t>*n);
 // };
 
 struct add_mix {
   static re_t apply(re_t a, re_t b) { return a + b; }
-  static back_f bf() { return {"add", backward}; }
+  static back_f<re_t> bf() { return {"add", backward}; }
   static void backward(tape_t<re_t> *t, node<re_t> *n);
 };
 
 struct sub_mix {
   static re_t apply(re_t a, re_t b) { return a - b; }
-  static back_f bf() { return {"sub", backward}; }
+  static back_f<re_t> bf() { return {"sub", backward}; }
   static void backward(tape_t<re_t> *t, node<re_t> *n);
 };
 
 struct mul_mix {
   static re_t apply(re_t a, re_t b) { return a * b; }
-  static back_f bf() { return {"mul", backward}; }
+  static back_f<re_t> bf() { return {"mul", backward}; }
   static void backward(tape_t<re_t> *t, node<re_t> *n);
 };
 
 struct div_mix {
   static re_t apply(re_t a, re_t b) { return a / b; }
-  static back_f bf() { return {"div", backward}; }
+  static back_f<re_t> bf() { return {"div", backward}; }
   static void backward(tape_t<re_t> *t, node<re_t> *n);
 };
 
 struct pow_mix {
   static re_t apply(re_t a, re_t b) { return std::pow(a, b); }
-  static back_f bf() { return {"pow", backward}; }
+  static back_f<re_t> bf() { return {"pow", backward}; }
   static void backward(tape_t<re_t> *t, node<re_t> *n);
 };
 
@@ -283,35 +283,35 @@ template <typename mix> struct op_mix : mix {
 struct dot_mix {
   static re_t start() { return 0.0; }
   static void apply(re_t &r, re_t a, re_t b) { r += (a * b); }
-  static back_f bf() { return {"dot", backward}; }
+  static back_f<re_t> bf() { return {"dot", backward}; }
   static void backward(tape_t<re_t> *t, node<re_t> *n);
 };
 
 struct asum_mix {
   static re_t start() { return 0.0; }
   static void apply(re_t &r, re_t a) { r += a; }
-  static back_f bf() { return {"asum", backward}; }
+  static back_f<re_t> bf() { return {"asum", backward}; }
   static void backward(tape_t<re_t> *t, node<re_t> *n);
 };
 
 struct gsum_mix {
   static re_t start() { return 1.0; }
   static void apply(re_t &r, re_t a) { r *= a; }
-  static back_f bf() { return {"gsum", nullptr}; }
+  static back_f<re_t> bf() { return {"gsum", nullptr}; }
   static void backward(tape_t<re_t> *t, node<re_t> *n);
 };
 
 // struct max_mix {
 //   static re_t start() { return -INFINITY; }
 //   static void apply(re_t &r, re_t a) { r = std::max(r, a); }
-//   static back_f bf() { return {"max", nullptr}; }
+//   static back_f<re_t> bf() { return {"max", nullptr}; }
 //   // static void backward(tape_t* t, node* n);
 // };
 //
 // struct min_mix {
 //   static re_t start() { return INFINITY; }
 //   static void apply(re_t &r, re_t a) { r = std::min(r, a); }
-//   static back_f bf() { return {"min", nullptr}; }
+//   static back_f<re_t> bf() { return {"min", nullptr}; }
 //   // static void backward(tape_t* t, node* n);
 // };
 
