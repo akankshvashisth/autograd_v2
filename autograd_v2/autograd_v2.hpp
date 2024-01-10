@@ -58,18 +58,18 @@ struct tape_t;
 
 struct node;
 
-struct variable;
+struct var;
 
-struct variable {
-  variable(tape_t *t, node *n) : t_(t), n_(n) {}
-  variable() : t_(nullptr), n_(nullptr) {}
+struct var {
+  var(tape_t *t, node *n) : t_(t), n_(n) {}
+  var() : t_(nullptr), n_(nullptr) {}
 
-  variable(variable const &r) = default;
-  variable(variable &&r) = default;
+  var(var const &r) = default;
+  var(var &&r) = default;
 
-  variable(real_t r, tape_t *t);
+  var(real_t r, tape_t *t);
 
-  variable clone() const { return variable{value(), t_}; }
+  var clone() const { return var{value(), t_}; }
 
   real_t value() const;
 
@@ -79,16 +79,16 @@ struct variable {
   node const &n() const { return *n_; }
   node *np() const { return n_; }
 
-  variable &operator=(variable const &r) = default;
-  variable &operator=(variable &&r) = default;
+  var &operator=(var const &r) = default;
+  var &operator=(var &&r) = default;
 
-  variable &operator+=(variable const &r);
-  variable &operator-=(variable const &r);
-  variable &operator*=(variable const &r);
-  variable &operator/=(variable const &r);
-  variable operator-() const;
+  var &operator+=(var const &r);
+  var &operator-=(var const &r);
+  var &operator*=(var const &r);
+  var &operator/=(var const &r);
+  var operator-() const;
 
-  // variable& operator/=(variable const& r);
+  // var& operator/=(var const& r);
 
   bool is_alive() const { return t_ != nullptr && n_ != nullptr; }
 
@@ -120,7 +120,7 @@ struct tape_t {
     return ret;
   }
 
-  variable new_variable(real_t const &r) {
+  var new_variable(real_t const &r) {
     node *n = new_node();
     n->v_ = r;
     return {this, n};
@@ -153,12 +153,12 @@ struct tape_t {
   }
 
   deq_t<node> nodes_;
-  vec_t<variable> grads_;
+  vec_t<var> grads_;
   stack_t<std::tuple<idx_t, idx_t>> saved_state_;
 };
 
-auto &grad(variable &n) { return n.t().grads_[n.n().idx_]; }
-auto const &grad(variable const &n) { return n.t().grads_[n.n().idx_]; }
+auto &grad(var &n) { return n.t().grads_[n.n().idx_]; }
+auto const &grad(var const &n) { return n.t().grads_[n.n().idx_]; }
 
 #pragma endregion
 
@@ -252,12 +252,12 @@ template <typename mix> struct u_op_mix : mix {
   using mix::apply;
   using mix::bf;
   static real_t fwd(real_t const &a) { return apply(a); }
-  static variable fwd(variable const &a) {
+  static var fwd(var const &a) {
     node *new_node = a.t().new_node();
     new_node->v_ = fwd(a.n().v_);
     new_node->backwards_ = bf();
     new_node->ls_.push_back(a.np());
-    return variable{&a.t(), new_node};
+    return var{&a.t(), new_node};
   }
 };
 
@@ -265,13 +265,13 @@ template <typename mix> struct op_mix : mix {
   using mix::apply;
   using mix::bf;
   static real_t fwd(real_t const &a, real_t const &b) { return apply(a, b); }
-  static variable fwd(variable const &a, variable const &b) {
+  static var fwd(var const &a, var const &b) {
     node *new_node = a.t().new_node();
     new_node->v_ = fwd(a.n().v_, b.n().v_);
     new_node->backwards_ = bf();
     new_node->ls_.push_back(a.np());
     new_node->rs_.push_back(b.np());
-    return variable{&a.t(), new_node};
+    return var{&a.t(), new_node};
   }
 };
 
@@ -314,7 +314,7 @@ template <typename mix> struct v_u_to_1_op_mix : mix {
   using mix::apply;
   using mix::bf;
   using mix::start;
-  static real_t fwd_impl(vec_t<variable> const &a, vec_t<node *> &ls) {
+  static real_t fwd_impl(vec_t<var> const &a, vec_t<node *> &ls) {
     real_t ret = start();
     for (int i = 0; i < a.size(); i++) {
       apply(ret, a[i].n().v_);
@@ -322,12 +322,12 @@ template <typename mix> struct v_u_to_1_op_mix : mix {
     }
     return ret;
   }
-  static variable fwd(vec_t<variable> const &a) {
+  static var fwd(vec_t<var> const &a) {
     assert(a.size());
     node *new_node = a.front().t().new_node();
     new_node->v_ = fwd_impl(a, new_node->ls_);
     new_node->backwards_ = bf();
-    return variable{&a.front().t(), new_node};
+    return var{&a.front().t(), new_node};
   }
 };
 
@@ -335,7 +335,7 @@ template <typename mix> struct v_b_to_1_op_mix : mix {
   using mix::apply;
   using mix::bf;
   using mix::start;
-  static real_t fwd_impl(vec_t<variable> const &a, vec_t<variable> const &b,
+  static real_t fwd_impl(vec_t<var> const &a, vec_t<var> const &b,
                          vec_t<node *> &ls, vec_t<node *> &rs) {
     real_t ret = start();
     for (int i = 0; i < a.size(); i++) {
@@ -345,13 +345,13 @@ template <typename mix> struct v_b_to_1_op_mix : mix {
     }
     return ret;
   }
-  static variable fwd(vec_t<variable> const &a, vec_t<variable> const &b) {
+  static var fwd(vec_t<var> const &a, vec_t<var> const &b) {
     assert(a.size());
     assert(a.size() == b.size());
     node *new_node = a.front().t().new_node();
     new_node->v_ = fwd_impl(a, b, new_node->ls_, new_node->rs_);
     new_node->backwards_ = bf();
-    return variable{&a.front().t(), new_node};
+    return var{&a.front().t(), new_node};
   }
 };
 
@@ -359,86 +359,82 @@ template <typename mix> struct v_b_to_1_op_mix : mix {
 
 #pragma region operator_overloads
 
-// auto identity(variable a) { return u_op_mix<id_mix>::fwd(a); }
+// auto identity(var a) { return u_op_mix<id_mix>::fwd(a); }
 
-auto relu(variable a) { return u_op_mix<relu_mix>::fwd(a); }
-auto sqrt(variable a) { return u_op_mix<sqrt_mix>::fwd(a); }
+auto relu(var a) { return u_op_mix<relu_mix>::fwd(a); }
+auto sqrt(var a) { return u_op_mix<sqrt_mix>::fwd(a); }
 
-auto sin(variable a) { return u_op_mix<sin_mix>::fwd(a); }
-auto cos(variable a) { return u_op_mix<cos_mix>::fwd(a); }
-auto tanh(variable a) { return u_op_mix<tanh_mix>::fwd(a); }
-auto neg(variable a) { return u_op_mix<neg_mix>::fwd(a); }
+auto sin(var a) { return u_op_mix<sin_mix>::fwd(a); }
+auto cos(var a) { return u_op_mix<cos_mix>::fwd(a); }
+auto tanh(var a) { return u_op_mix<tanh_mix>::fwd(a); }
+auto neg(var a) { return u_op_mix<neg_mix>::fwd(a); }
 
-auto exp(variable a) { return u_op_mix<exp_mix>::fwd(a); }
-auto log(variable a) { return u_op_mix<log_mix>::fwd(a); }
+auto exp(var a) { return u_op_mix<exp_mix>::fwd(a); }
+auto log(var a) { return u_op_mix<log_mix>::fwd(a); }
 
-auto pow(variable a, variable b) { return op_mix<pow_mix>::fwd(a, b); }
-auto operator+(variable a, variable b) { return op_mix<add_mix>::fwd(a, b); }
-auto operator-(variable a, variable b) { return op_mix<sub_mix>::fwd(a, b); }
-auto operator*(variable a, variable b) { return op_mix<mul_mix>::fwd(a, b); }
-auto operator/(variable a, variable b) { return op_mix<div_mix>::fwd(a, b); }
-auto operator^(variable a, variable b) { return pow(a, b); }
+auto pow(var a, var b) { return op_mix<pow_mix>::fwd(a, b); }
+auto operator+(var a, var b) { return op_mix<add_mix>::fwd(a, b); }
+auto operator-(var a, var b) { return op_mix<sub_mix>::fwd(a, b); }
+auto operator*(var a, var b) { return op_mix<mul_mix>::fwd(a, b); }
+auto operator/(var a, var b) { return op_mix<div_mix>::fwd(a, b); }
+auto operator^(var a, var b) { return pow(a, b); }
 
-auto pow(variable a, real_t b) { return pow(a, variable{b, &a.t()}); }
-auto operator+(variable a, real_t b) { return a + variable{b, &a.t()}; }
-auto operator-(variable a, real_t b) { return a - variable{b, &a.t()}; }
-auto operator*(variable a, real_t b) { return a * variable{b, &a.t()}; }
-auto operator/(variable a, real_t b) { return a / variable{b, &a.t()}; }
-auto operator^(variable a, real_t b) { return pow(a, variable{b, &a.t()}); }
+auto pow(var a, real_t b) { return pow(a, var{b, &a.t()}); }
+auto operator+(var a, real_t b) { return a + var{b, &a.t()}; }
+auto operator-(var a, real_t b) { return a - var{b, &a.t()}; }
+auto operator*(var a, real_t b) { return a * var{b, &a.t()}; }
+auto operator/(var a, real_t b) { return a / var{b, &a.t()}; }
+auto operator^(var a, real_t b) { return pow(a, var{b, &a.t()}); }
 
-auto pow(real_t a, variable b) { return pow(variable{a, &b.t()}, b); }
-auto operator+(real_t a, variable b) { return variable{a, &b.t()} + b; }
-auto operator-(real_t a, variable b) { return variable{a, &b.t()} - b; }
-auto operator*(real_t a, variable b) { return variable{a, &b.t()} * b; }
-auto operator/(real_t a, variable b) { return variable{a, &b.t()} / b; }
-auto operator^(real_t a, variable b) { return pow(variable{a, &b.t()}, b); }
+auto pow(real_t a, var b) { return pow(var{a, &b.t()}, b); }
+auto operator+(real_t a, var b) { return var{a, &b.t()} + b; }
+auto operator-(real_t a, var b) { return var{a, &b.t()} - b; }
+auto operator*(real_t a, var b) { return var{a, &b.t()} * b; }
+auto operator/(real_t a, var b) { return var{a, &b.t()} / b; }
+auto operator^(real_t a, var b) { return pow(var{a, &b.t()}, b); }
 
-variable::variable(real_t r, tape_t *t) {
+var::var(real_t r, tape_t *t) {
   t_ = t;
   n_ = t_->new_variable(r).np();
 }
 
-real_t variable::value() const { return n().v_; }
+real_t var::value() const { return n().v_; }
 
-variable &variable::operator+=(variable const &r) {
+var &var::operator+=(var const &r) {
   (*this) = (*this) + r;
   return *this;
 }
 
-variable &variable::operator-=(variable const &r) {
+var &var::operator-=(var const &r) {
   (*this) = (*this) - r;
   return *this;
 }
 
-variable &variable::operator*=(variable const &r) {
+var &var::operator*=(var const &r) {
   (*this) = (*this) * r;
   return *this;
 }
 
-variable &variable::operator/=(variable const &r) {
+var &var::operator/=(var const &r) {
   (*this) = (*this) / r;
   return *this;
 }
 
-variable variable::operator-() const { return *this * variable(-1.0, t_); }
+var var::operator-() const { return *this * var(-1.0, t_); }
 
-variable dot(vec_t<variable> const &a, vec_t<variable> const &b) {
+var dot(vec_t<var> const &a, vec_t<var> const &b) {
   return v_b_to_1_op_mix<dot_mix>::fwd(a, b);
 }
 
-variable asum(vec_t<variable> const &a) {
-  return v_u_to_1_op_mix<asum_mix>::fwd(a);
-}
-variable gsum(vec_t<variable> const &a) {
-  return v_u_to_1_op_mix<gsum_mix>::fwd(a);
-}
+var asum(vec_t<var> const &a) { return v_u_to_1_op_mix<asum_mix>::fwd(a); }
+var gsum(vec_t<var> const &a) { return v_u_to_1_op_mix<gsum_mix>::fwd(a); }
 
-variable mean(vec_t<variable> const &a) { return asum(a) / real_t(a.size()); }
-variable gmean(vec_t<variable> const &a) { return gsum(a) / real_t(a.size()); }
+var mean(vec_t<var> const &a) { return asum(a) / real_t(a.size()); }
+var gmean(vec_t<var> const &a) { return gsum(a) / real_t(a.size()); }
 
-variable max(vec_t<variable> const &a) {
+var max(vec_t<var> const &a) {
   assert(a.size());
-  variable m = a[0];
+  var m = a[0];
   for (size_t i = 1; i < a.size(); ++i) {
     if (a[i].value() > m.value()) {
       m = a[i];
@@ -447,9 +443,9 @@ variable max(vec_t<variable> const &a) {
   return m;
 }
 
-variable min(vec_t<variable> const &a) {
+var min(vec_t<var> const &a) {
   assert(a.size());
-  variable m = a[0];
+  var m = a[0];
   for (size_t i = 1; i < a.size(); ++i) {
     if (a[i].value() < m.value()) {
       m = a[i];
@@ -462,7 +458,7 @@ variable min(vec_t<variable> const &a) {
 
 #pragma region backward
 
-template <typename F> void backward_grad_accumulate(variable &x, F df) {
+template <typename F> void backward_grad_accumulate(var &x, F df) {
   if (grad(x).is_alive()) {
     grad(x) += df();
   } else {
@@ -470,16 +466,16 @@ template <typename F> void backward_grad_accumulate(variable &x, F df) {
   }
 }
 
-void backward_set_grad_if_not_alive(variable &x) {
+void backward_set_grad_if_not_alive(var &x) {
   if (!grad(x).is_alive()) {
     grad(x) = x.t().new_variable(0.0);
   }
 }
 
 void sqrt_mix::backward(tape_t *t, node *n) {
-  variable f{t, n};
-  variable &fg = grad(f);
-  variable l{t, n->ls_.front()};
+  var f{t, n};
+  var &fg = grad(f);
+  var l{t, n->ls_.front()};
 
   auto df = [&]() { return 0.5 * fg / sqrt(l); };
 
@@ -487,9 +483,9 @@ void sqrt_mix::backward(tape_t *t, node *n) {
 }
 
 void exp_mix::backward(tape_t *t, node *n) {
-  variable f{t, n};
-  variable &fg = grad(f);
-  variable l{t, n->ls_.front()};
+  var f{t, n};
+  var &fg = grad(f);
+  var l{t, n->ls_.front()};
 
   auto df = [&]() { return f * fg; };
 
@@ -497,9 +493,9 @@ void exp_mix::backward(tape_t *t, node *n) {
 }
 
 void log_mix::backward(tape_t *t, node *n) {
-  variable f{t, n};
-  variable &fg = grad(f);
-  variable l{t, n->ls_.front()};
+  var f{t, n};
+  var &fg = grad(f);
+  var l{t, n->ls_.front()};
 
   auto df = [&]() { return fg / l; };
 
@@ -507,9 +503,9 @@ void log_mix::backward(tape_t *t, node *n) {
 }
 
 void neg_mix::backward(tape_t *t, node *n) {
-  variable f{t, n};
-  variable &fg = grad(f);
-  variable l{t, n->ls_.front()};
+  var f{t, n};
+  var &fg = grad(f);
+  var l{t, n->ls_.front()};
 
   auto df = [&]() { return -fg; };
 
@@ -518,9 +514,9 @@ void neg_mix::backward(tape_t *t, node *n) {
 
 void sin_mix::backward(tape_t *t, node *n) {
 
-  variable f{t, n};
-  variable &fg = grad(f);
-  variable l{t, n->ls_.front()};
+  var f{t, n};
+  var &fg = grad(f);
+  var l{t, n->ls_.front()};
 
   auto df = [&]() { return cos(l) * fg; };
 
@@ -528,9 +524,9 @@ void sin_mix::backward(tape_t *t, node *n) {
 }
 
 void cos_mix::backward(tape_t *t, node *n) {
-  variable f{t, n};
-  variable &fg = grad(f);
-  variable l{t, n->ls_.front()};
+  var f{t, n};
+  var &fg = grad(f);
+  var l{t, n->ls_.front()};
 
   auto df = [&]() { return -sin(l) * fg; };
 
@@ -539,9 +535,9 @@ void cos_mix::backward(tape_t *t, node *n) {
 
 void tanh_mix::backward(tape_t *t, node *n) {
 
-  variable f{t, n};
-  variable &fg = grad(f);
-  variable l{t, n->ls_.front()};
+  var f{t, n};
+  var &fg = grad(f);
+  var l{t, n->ls_.front()};
 
   auto df = [&]() { return (1.0 - (f ^ 2.0)) * fg; };
 
@@ -550,9 +546,9 @@ void tanh_mix::backward(tape_t *t, node *n) {
 
 void relu_mix::backward(tape_t *t, node *n) {
 
-  variable f{t, n};
-  variable &fg = grad(f);
-  variable l{t, n->ls_.front()};
+  var f{t, n};
+  var &fg = grad(f);
+  var l{t, n->ls_.front()};
 
   auto df = [&]() { return (l.value() > 0.0) * fg; };
 
@@ -560,26 +556,26 @@ void relu_mix::backward(tape_t *t, node *n) {
 }
 
 // void id_mix::backward(tape_t *t, node *n) {
-//   variable f{t, n};
-//   variable &fg = grad(f);
-//   variable l{t, n->ls_.front()};
+//   var f{t, n};
+//   var &fg = grad(f);
+//   var l{t, n->ls_.front()};
 //
-//   variable one = t->new_variable(1.0);
+//   var one = t->new_variable(1.0);
 //
 //   if (!grad(l).is_alive()) {
-//     grad(l) = variable(0.0, t);
+//     grad(l) = var(0.0, t);
 //   }
 //
 //   grad(l) += grad(l) + fg;
 // }
 
 void dot_mix::backward(tape_t *t, node *n) {
-  variable f{t, n};
-  variable &fg = grad(f);
+  var f{t, n};
+  var &fg = grad(f);
 
   for (size_t i = 0; i < n->rs_.size(); ++i) {
-    variable l{t, n->ls_[i]};
-    variable r{t, n->rs_[i]};
+    var l{t, n->ls_[i]};
+    var r{t, n->rs_[i]};
 
     auto dfdl = [&]() { return r * fg; };
     auto dfdr = [&]() { return l * fg; };
@@ -590,21 +586,21 @@ void dot_mix::backward(tape_t *t, node *n) {
 }
 
 void asum_mix::backward(tape_t *t, node *n) {
-  variable f{t, n};
-  variable &fg = grad(f);
+  var f{t, n};
+  var &fg = grad(f);
 
   for (auto &ls : n->ls_) {
-    variable l{t, ls};
+    var l{t, ls};
     backward_set_grad_if_not_alive(l);
     grad(l) += fg;
   }
 }
 
 void add_mix::backward(tape_t *t, node *n) {
-  variable f{t, n};
-  variable &fg = grad(f);
-  variable l{t, n->ls_.front()};
-  variable r{t, n->rs_.front()};
+  var f{t, n};
+  var &fg = grad(f);
+  var l{t, n->ls_.front()};
+  var r{t, n->rs_.front()};
 
   backward_set_grad_if_not_alive(l);
   backward_set_grad_if_not_alive(r);
@@ -614,10 +610,10 @@ void add_mix::backward(tape_t *t, node *n) {
 }
 
 void sub_mix::backward(tape_t *t, node *n) {
-  variable f{t, n};
-  variable &fg = grad(f);
-  variable l{t, n->ls_.front()};
-  variable r{t, n->rs_.front()};
+  var f{t, n};
+  var &fg = grad(f);
+  var l{t, n->ls_.front()};
+  var r{t, n->rs_.front()};
 
   backward_set_grad_if_not_alive(l);
   backward_set_grad_if_not_alive(r);
@@ -627,10 +623,10 @@ void sub_mix::backward(tape_t *t, node *n) {
 }
 
 void mul_mix::backward(tape_t *t, node *n) {
-  variable f{t, n};
-  variable &fg = grad(f);
-  variable l{t, n->ls_.front()};
-  variable r{t, n->rs_.front()};
+  var f{t, n};
+  var &fg = grad(f);
+  var l{t, n->ls_.front()};
+  var r{t, n->rs_.front()};
 
   auto dfdl = [&]() { return r * fg; };
   auto dfdr = [&]() { return l * fg; };
@@ -640,10 +636,10 @@ void mul_mix::backward(tape_t *t, node *n) {
 }
 
 void div_mix::backward(tape_t *t, node *n) {
-  variable f{t, n};
-  variable &fg = grad(f);
-  variable l{t, n->ls_.front()};
-  variable r{t, n->rs_.front()};
+  var f{t, n};
+  var &fg = grad(f);
+  var l{t, n->ls_.front()};
+  var r{t, n->rs_.front()};
 
   auto dfdl = [&]() { return fg / r; };
   auto dfdr = [&]() { return fg * l / (r * r); };
@@ -657,10 +653,10 @@ void div_mix::backward(tape_t *t, node *n) {
 }
 
 void pow_mix::backward(tape_t *t, node *n) {
-  variable f{t, n};
-  variable &fg = grad(f);
-  variable l{t, n->ls_.front()};
-  variable r{t, n->rs_.front()};
+  var f{t, n};
+  var &fg = grad(f);
+  var l{t, n->ls_.front()};
+  var r{t, n->rs_.front()};
 
   auto dfdl = [&]() { return fg * (r * pow(l, r - 1.0)); };
   auto dfdr = [&]() { return fg * f * log(l); };
@@ -675,7 +671,7 @@ void backward_impl(tape_t *t, node *n) {
   }
 }
 
-void backward(variable v) {
+void backward(var v) {
 
   v.t().fill_grads();
 
@@ -685,7 +681,7 @@ void backward(variable v) {
 
   for (size_t idx = v.n().idx_ + 1; idx != 0; --idx) {
     node *n = &(v.t().nodes_[idx - 1]);
-    variable n_ = {&v.t(), n};
+    var n_ = {&v.t(), n};
     if (!grad(n_).is_alive()) {
       grad(n_) = v.t().new_variable(0.0);
     }
@@ -699,7 +695,7 @@ void backward(variable v) {
 
 namespace aks {
 
-std::ostream &operator<<(std::ostream &o, variable const &vs) {
+std::ostream &operator<<(std::ostream &o, var const &vs) {
   o << std::setprecision(15) << "var(" << vs.value() << ";"
     << (vs.n().backwards_.n_ ? vs.n().backwards_.n_ : "null") << ";"
     << vs.t().nodes_.size() << ")";
@@ -727,7 +723,7 @@ std::string to_string(node const &v) {
   return ss.str();
 }
 
-inline std::string as_dot(variable iv, size_t i, size_t cnt, size_t start_cnt) {
+inline std::string as_dot(var iv, size_t i, size_t cnt, size_t start_cnt) {
   auto check = [](auto x) { return x != nullptr; };
 
   std::stringstream ss;
@@ -822,7 +818,7 @@ inline std::string as_dot(tape_t &t, size_t start_count = 0) {
       opcnt[op] = start_count;
     }
     size_t cnt = opcnt[op]++;
-    std::string str = as_dot(variable{&t, &data[idx]}, idx, cnt, start_count);
+    std::string str = as_dot(var{&t, &data[idx]}, idx, cnt, start_count);
     strs.emplace_back(std::move(str));
   }
   std::stringstream ss;
