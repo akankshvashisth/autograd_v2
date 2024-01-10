@@ -58,10 +58,10 @@ void test_01() {
 
   tape_t<re_t> t;
 
-  const var_t x = t.new_variable(3.0);
-  var_t y = t.new_variable(5.0);
+  const var_t<re_t> x = t.new_variable(3.0);
+  var_t<re_t> y = t.new_variable(5.0);
 
-  var_t f = (x * x * x * x * x * x * x * x);
+  var_t<re_t> f = (x * x * x * x * x * x * x * x);
 
   t.push_state();
   AKS_CHECK_VARIABLE(x, 3);
@@ -117,10 +117,10 @@ void test_02() {
   std::cout << "\ntest_02" << std::endl;
   using namespace aks;
   tape_t<re_t> t;
-  const var_t x = t.new_variable(3.0);
-  const var_t y = t.new_variable(8.0);
+  const var_t<re_t> x = t.new_variable(3.0);
+  const var_t<re_t> y = t.new_variable(8.0);
 
-  var_t f = pow(x, y);
+  var_t<re_t> f = pow(x, y);
 
   t.push_state();
   AKS_CHECK_VARIABLE(x, 3);
@@ -144,9 +144,9 @@ void test_03() {
   std::cout << "\ntest_03" << std::endl;
   using namespace aks;
   tape_t<re_t> t;
-  const var_t x = t.new_variable(3.0);
+  const var_t<re_t> x = t.new_variable(3.0);
 
-  var_t f = pow(x, 8.0);
+  var_t<re_t> f = pow(x, 8.0);
 
   t.push_state();
   AKS_CHECK_VARIABLE(x, 3);
@@ -169,9 +169,9 @@ void test_04() {
   std::cout << "\ntest_04" << std::endl;
   using namespace aks;
   tape_t<re_t> t;
-  const var_t x = t.new_variable(3.0);
+  const var_t<re_t> x = t.new_variable(3.0);
 
-  var_t f = exp(log(exp(log(exp(log(x))))));
+  var_t<re_t> f = exp(log(exp(log(exp(log(x))))));
 
   t.push_state();
   AKS_CHECK_VARIABLE(x, 3);
@@ -193,9 +193,9 @@ void test_05() {
   std::cout << "\ntest_05" << std::endl;
   using namespace aks;
   tape_t<re_t> t;
-  const var_t x = t.new_variable(1);
+  const var_t<re_t> x = t.new_variable(1);
 
-  var_t f = exp(exp(x));
+  var_t<re_t> f = exp(exp(x));
 
   t.push_state();
   AKS_CHECK_VARIABLE(x, 1);
@@ -219,9 +219,9 @@ void test_06_01() {
   std::cout << "\ntest_06_01" << std::endl;
   using namespace aks;
   tape_t<re_t> t;
-  const var_t x = t.new_variable(std::numbers::pi_v<re_t> / 2.0);
+  const var_t<re_t> x = t.new_variable(std::numbers::pi_v<re_t> / 2.0);
 
-  var_t f = sin(x);
+  var_t<re_t> f = sin(x);
 
   t.push_state();
   AKS_CHECK_VARIABLE(x, std::numbers::pi_v<re_t> / 2.0);
@@ -243,9 +243,9 @@ void test_06_02() {
   std::cout << "\ntest_06_02" << std::endl;
   using namespace aks;
   tape_t<re_t> t;
-  const var_t x = t.new_variable(std::numbers::pi_v<re_t> / 2.0);
+  const var_t<re_t> x = t.new_variable(std::numbers::pi_v<re_t> / 2.0);
 
-  var_t f = cos(x);
+  var_t<re_t> f = cos(x);
 
   t.push_state();
   AKS_CHECK_VARIABLE(x, std::numbers::pi_v<re_t> / 2.0);
@@ -267,9 +267,9 @@ void test_07() {
   std::cout << "\ntest_07" << std::endl;
   using namespace aks;
   tape_t<re_t> t;
-  const var_t x = t.new_variable(2);
+  const var_t<re_t> x = t.new_variable(2);
 
-  var_t f =
+  var_t<re_t> f =
       ((sin(x) ^ 2.0) / (log(x + 50) ^ 2.0)) * (1.0 - (exp(x) ^ (-x))) + cos(x);
 
   t.push_state();
@@ -296,10 +296,10 @@ void test_08() {
   std::cout << "\ntest_08" << std::endl;
   using namespace aks;
   tape_t<re_t> t;
-  const var_t x = t.new_variable(2);
-  const var_t y = t.new_variable(3);
+  const var_t<re_t> x = t.new_variable(2);
+  const var_t<re_t> y = t.new_variable(3);
 
-  var_t f =
+  var_t<re_t> f =
       (x ^ y) * exp(x) * exp(y) / (log(y) - (y ^ -0.5)) + sin(cos(x) * y * 0.5);
 
   t.push_state();
@@ -326,10 +326,10 @@ void test_09() {
   std::cout << "\ntest_09" << std::endl;
   using namespace aks;
   tape_t<re_t> t;
-  const var_t x = t.new_variable(2);
-  const var_t y = t.new_variable(3);
+  const var_t<re_t> x = t.new_variable(2);
+  const var_t<re_t> y = t.new_variable(3);
 
-  var_t f = sin(y * tanh(x / 4)) / tanh(y / 6);
+  var_t<re_t> f = sin(y * tanh(x / 4)) / tanh(y / 6);
 
   t.push_state();
   AKS_CHECK_VARIABLE(x, 2);
@@ -355,11 +355,11 @@ void test_10() {
   std::cout << "\ntest_10" << std::endl;
   using namespace aks;
   tape_t<re_t> t;
-  const var_t x = t.new_variable(2);
-  const var_t y = t.new_variable(3);
+  const var_t<re_t> x = t.new_variable(2);
+  const var_t<re_t> y = t.new_variable(3);
 
-  var_t f = (x ^ y) * exp(x) * exp(y) / (log(y) - (1.0 / sqrt(y))) +
-            sin(cos(x) * y * 0.5);
+  var_t<re_t> f = (x ^ y) * exp(x) * exp(y) / (log(y) - (1.0 / sqrt(y))) +
+                  sin(cos(x) * y * 0.5);
 
   t.push_state();
   AKS_CHECK_VARIABLE(x, 2);
@@ -385,9 +385,9 @@ void test_11() {
   std::cout << "\ntest_11" << std::endl;
   using namespace aks;
   tape_t<re_t> t;
-  const var_t x = t.new_variable(0.5);
+  const var_t<re_t> x = t.new_variable(0.5);
 
-  var_t f = relu(relu(relu(x)));
+  var_t<re_t> f = relu(relu(relu(x)));
 
   t.push_state();
   AKS_CHECK_VARIABLE(x, 0.5);
@@ -409,9 +409,9 @@ void test_12() {
   std::cout << "\ntest_12" << std::endl;
   using namespace aks;
   tape_t<re_t> t;
-  const var_t x = t.new_variable(-0.5);
+  const var_t<re_t> x = t.new_variable(-0.5);
 
-  var_t f = relu(relu(relu(x)));
+  var_t<re_t> f = relu(relu(relu(x)));
 
   t.push_state();
   AKS_CHECK_VARIABLE(x, -0.5);
@@ -433,11 +433,11 @@ void test_13() {
   std::cout << "\ntest_13" << std::endl;
   using namespace aks;
   tape_t<re_t> t;
-  const var_t x = t.new_variable(2);
-  const var_t y = t.new_variable(3);
+  const var_t<re_t> x = t.new_variable(2);
+  const var_t<re_t> y = t.new_variable(3);
 
-  var_t f = (x ^ y) * exp(x) * exp(y) / (log(y) - (1.0 / sqrt(y))) +
-            sin(cos(x) * y * 0.5);
+  var_t<re_t> f = (x ^ y) * exp(x) * exp(y) / (log(y) - (1.0 / sqrt(y))) +
+                  sin(cos(x) * y * 0.5);
 
   f = f * f;
 
@@ -465,10 +465,10 @@ void test_14() {
   std::cout << "\ntest_14" << std::endl;
   using namespace aks;
   tape_t<re_t> t;
-  const var_t x = t.new_variable(0.25);
-  const var_t y = t.new_variable(0.5);
+  const var_t<re_t> x = t.new_variable(0.25);
+  const var_t<re_t> y = t.new_variable(0.5);
 
-  var_t f = (x ^ y) / (log(y) - (1.0 / sqrt(y))) + sin(cos(x));
+  var_t<re_t> f = (x ^ y) / (log(y) - (1.0 / sqrt(y))) + sin(cos(x));
 
   f = sqrt(f);
 
@@ -496,9 +496,9 @@ void test_15() {
   std::cout << "\ntest_15" << std::endl;
   using namespace aks;
   tape_t<re_t> t;
-  const var_t x = t.new_variable(2);
-  const var_t y = t.new_variable(3);
-  const var_t z = t.new_variable(5);
+  const var_t<re_t> x = t.new_variable(2);
+  const var_t<re_t> y = t.new_variable(3);
+  const var_t<re_t> z = t.new_variable(5);
 
   auto F = [&]() {
     return ((x + z) ^ y) * exp(0.25 * sqrt(z) * y * x) * exp(0.25 * (y + x)) /
@@ -508,7 +508,7 @@ void test_15() {
 
   {
     t.push_state();
-    var_t f = F();
+    var_t<re_t> f = F();
 
     AKS_CHECK_VARIABLE(x, 2);
     AKS_CHECK_VARIABLE(y, 3);
@@ -531,7 +531,7 @@ void test_15() {
   }
   {
     t.push_state();
-    var_t f = F();
+    var_t<re_t> f = F();
 
     AKS_CHECK_VARIABLE(x, 2);
     AKS_CHECK_VARIABLE(y, 3);
@@ -552,7 +552,7 @@ void test_15() {
   }
   {
     t.push_state();
-    var_t f = F();
+    var_t<re_t> f = F();
 
     AKS_CHECK_VARIABLE(x, 2);
     AKS_CHECK_VARIABLE(y, 3);
@@ -581,12 +581,12 @@ void test_16() {
 
   tape_t<re_t> t;
 
-  const var_t x = t.new_variable(2);
-  const var_t y = t.new_variable(3);
-  const var_t z = t.new_variable(4);
+  const var_t<re_t> x = t.new_variable(2);
+  const var_t<re_t> y = t.new_variable(3);
+  const var_t<re_t> z = t.new_variable(4);
 
   auto F = [&]() {
-    var_t f = (z * (x + y));
+    var_t<re_t> f = (z * (x + y));
     for (int i = 0; i < 3; ++i) {
       f *= f;
     }
@@ -596,7 +596,7 @@ void test_16() {
   {
 
     t.push_state();
-    var_t f = F();
+    var_t<re_t> f = F();
 
     AKS_CHECK_VARIABLE(x, 2);
     AKS_CHECK_VARIABLE(y, 3);
@@ -621,7 +621,7 @@ void test_16() {
   {
 
     t.push_state();
-    var_t f = F();
+    var_t<re_t> f = F();
 
     AKS_CHECK_VARIABLE(x, 2);
     AKS_CHECK_VARIABLE(y, 3);
@@ -646,7 +646,7 @@ void test_16() {
   {
 
     t.push_state();
-    var_t f = F();
+    var_t<re_t> f = F();
 
     AKS_CHECK_VARIABLE(x, 2);
     AKS_CHECK_VARIABLE(y, 3);
@@ -675,16 +675,16 @@ void test_17() {
 
   tape_t<re_t> t;
 
-  const var_t x = t.new_variable(2);
-  const var_t y = t.new_variable(3);
-  const var_t z = t.new_variable(4);
+  const var_t<re_t> x = t.new_variable(2);
+  const var_t<re_t> y = t.new_variable(3);
+  const var_t<re_t> z = t.new_variable(4);
 
   auto F = [&]() {
-    var_t f = (z * (x + y));
+    var_t<re_t> f = (z * (x + y));
     for (int i = 0; i < 2; ++i) {
       f *= f;
     }
-    var_t f2 = (z - x) * y;
+    var_t<re_t> f2 = (z - x) * y;
     for (int i = 0; i < 1; ++i) {
       f2 *= f2;
     }
@@ -695,7 +695,7 @@ void test_17() {
 
   {
     t.push_state();
-    var_t f = F();
+    var_t<re_t> f = F();
 
     AKS_CHECK_VARIABLE(x, 2);
     AKS_CHECK_VARIABLE(y, 3);
@@ -721,7 +721,7 @@ void test_17() {
   {
 
     t.push_state();
-    var_t f = F();
+    var_t<re_t> f = F();
 
     AKS_CHECK_VARIABLE(x, 2);
     AKS_CHECK_VARIABLE(y, 3);
@@ -747,7 +747,7 @@ void test_17() {
   {
 
     t.push_state();
-    var_t f = F();
+    var_t<re_t> f = F();
 
     AKS_CHECK_VARIABLE(x, 2);
     AKS_CHECK_VARIABLE(y, 3);
@@ -774,9 +774,9 @@ void test_18() {
   std::cout << "\ntest_18" << std::endl;
   using namespace aks;
   tape_t<re_t> t;
-  const var_t x = t.new_variable(2);
+  const var_t<re_t> x = t.new_variable(2);
 
-  var_t f =
+  var_t<re_t> f =
       ((sin(x) ^ 2.0) / (log(x + 50) ^ 2.0)) * tanh((1.0 - (exp(x) ^ (-x)))) +
       cos(x);
 
@@ -807,18 +807,18 @@ void test_19() {
   auto NR = [](re_t guess, auto f, re_t tolerance = 1e-6) {
     tape_t<re_t> tape;
 
-    auto derivative = [&tape](var_t fx, var_t x) {
+    auto derivative = [&tape](var_t<re_t> fx, var_t<re_t> x) {
       tape.push_state();
       tape.zero_grad();
       backward(fx);
-      var_t dfdx = grad(x);
+      var_t<re_t> dfdx = grad(x);
       double r_dfdx = dfdx.value();
       tape.pop_state();
       return r_dfdx;
     };
 
-    var_t x = tape.new_variable(guess);
-    var_t fx = f(x);
+    var_t<re_t> x = tape.new_variable(guess);
+    var_t<re_t> fx = f(x);
 
     while (std::abs(fx.value()) > tolerance) {
       x = x - fx / derivative(fx, x);
@@ -845,9 +845,9 @@ void test_20() {
 
   tape_t<re_t> t;
 
-  var_t x = t.new_variable(2.0);
-  var_t y = t.new_variable(3.0);
-  var_t z = t.new_variable(5.0);
+  var_t<re_t> x = t.new_variable(2.0);
+  var_t<re_t> y = t.new_variable(3.0);
+  var_t<re_t> z = t.new_variable(5.0);
 
   AKS_CHECK_VARIABLE(x, 2.0);
   AKS_CHECK_VARIABLE(y, 3.0);
@@ -855,7 +855,7 @@ void test_20() {
 
   auto DIFF = [&](size_t I, size_t J, size_t K) {
     t.push_state();
-    var_t f = (x * y * z) ^ 4;
+    var_t<re_t> f = (x * y * z) ^ 4;
 
     for (size_t i = 0; i < I; ++i) {
       t.zero_grad();
@@ -949,9 +949,9 @@ void test_21() {
 
   tape_t<re_t> t;
 
-  var_t x = t.new_variable(2.0);
-  var_t y = t.new_variable(3.0);
-  var_t z = t.new_variable(5.0);
+  var_t<re_t> x = t.new_variable(2.0);
+  var_t<re_t> y = t.new_variable(3.0);
+  var_t<re_t> z = t.new_variable(5.0);
 
   AKS_CHECK_VARIABLE(x, 2.0);
   AKS_CHECK_VARIABLE(y, 3.0);
@@ -959,7 +959,7 @@ void test_21() {
 
   auto DIFF = [&](size_t I, size_t J, size_t K) {
     t.push_state();
-    var_t f = ((z + (x * y)) ^ 4) / ((z - ((x * y) ^ 4)));
+    var_t<re_t> f = ((z + (x * y)) ^ 4) / ((z - ((x * y) ^ 4)));
     for (size_t k = 0; k < K; ++k) {
       t.zero_grad();
       backward(f);
@@ -1016,9 +1016,9 @@ void test_22() {
 
   tape_t<re_t> t;
 
-  var_t x = t.new_variable(2.0);
-  var_t y = t.new_variable(3.0);
-  var_t z = t.new_variable(5.0);
+  var_t<re_t> x = t.new_variable(2.0);
+  var_t<re_t> y = t.new_variable(3.0);
+  var_t<re_t> z = t.new_variable(5.0);
 
   AKS_CHECK_VARIABLE(x, 2.0);
   AKS_CHECK_VARIABLE(y, 3.0);
@@ -1026,7 +1026,8 @@ void test_22() {
 
   auto DIFF = [&](size_t I, size_t J, size_t K) {
     t.push_state();
-    var_t f = (z * (sin(x + y) + cos(x - y))) / (log(x) * tanh(y) * exp(z));
+    var_t<re_t> f =
+        (z * (sin(x + y) + cos(x - y))) / (log(x) * tanh(y) * exp(z));
     for (size_t k = 0; k < K; ++k) {
       t.zero_grad();
       backward(f);
@@ -1083,9 +1084,9 @@ void test_23() {
 
   tape_t<re_t> t;
 
-  var_t x = t.new_variable(2.0);
-  var_t y = t.new_variable(3.0);
-  var_t z = t.new_variable(5.0);
+  var_t<re_t> x = t.new_variable(2.0);
+  var_t<re_t> y = t.new_variable(3.0);
+  var_t<re_t> z = t.new_variable(5.0);
 
   AKS_CHECK_VARIABLE(x, 2.0);
   AKS_CHECK_VARIABLE(y, 3.0);
@@ -1093,7 +1094,7 @@ void test_23() {
 
   auto DIFF = [&](size_t I, size_t J, size_t K) {
     t.push_state();
-    var_t f = (((x * y) ^ 2.0) + ((x ^ z) - (y ^ z))) / (sqrt(z - x));
+    var_t<re_t> f = (((x * y) ^ 2.0) + ((x ^ z) - (y ^ z))) / (sqrt(z - x));
     for (size_t k = 0; k < K; ++k) {
       t.zero_grad();
       backward(f);
@@ -1187,9 +1188,9 @@ void test_24_01() {
 
   tape_t<re_t> t;
 
-  var_t x = t.new_variable(2.0);
-  var_t y = t.new_variable(3.0);
-  var_t z = t.new_variable(5.0);
+  var_t<re_t> x = t.new_variable(2.0);
+  var_t<re_t> y = t.new_variable(3.0);
+  var_t<re_t> z = t.new_variable(5.0);
 
   AKS_CHECK_VARIABLE(x, 2.0);
   AKS_CHECK_VARIABLE(y, 3.0);
@@ -1197,7 +1198,7 @@ void test_24_01() {
 
   auto DIFF = [&](size_t I, size_t J, size_t K) {
     t.push_state();
-    var_t f = tanh(x * tanh(sqrt(z - x)));
+    var_t<re_t> f = tanh(x * tanh(sqrt(z - x)));
     ;
     for (size_t k = 0; k < K; ++k) {
       t.zero_grad();
@@ -1245,9 +1246,9 @@ void test_24_02() {
 
   tape_t<re_t> t;
 
-  var_t x = t.new_variable(2.0);
-  var_t y = t.new_variable(3.0);
-  var_t z = t.new_variable(5.0);
+  var_t<re_t> x = t.new_variable(2.0);
+  var_t<re_t> y = t.new_variable(3.0);
+  var_t<re_t> z = t.new_variable(5.0);
 
   AKS_CHECK_VARIABLE(x, 2.0);
   AKS_CHECK_VARIABLE(y, 3.0);
@@ -1255,7 +1256,7 @@ void test_24_02() {
 
   auto DIFF = [&](size_t I, size_t J, size_t K) {
     t.push_state();
-    var_t f = sqrt(x * exp(y - log(z)));
+    var_t<re_t> f = sqrt(x * exp(y - log(z)));
     for (size_t k = 0; k < K; ++k) {
       t.zero_grad();
       backward(f);
@@ -1351,13 +1352,13 @@ void test_25() {
 
   auto to_variable = [&](re_t v) { return t.new_variable(v); };
 
-  vec_t<var_t> xs = zipped_op(to_variable, vec_re_t{2.0, 3.0, 5.0});
-  vec_t<var_t> ys = zipped_op(to_variable, vec_re_t{7.0, 11.0, 13.0});
+  vec_t<var_t<re_t>> xs = zipped_op(to_variable, vec_re_t{2.0, 3.0, 5.0});
+  vec_t<var_t<re_t>> ys = zipped_op(to_variable, vec_re_t{7.0, 11.0, 13.0});
 
   AKS_CHECK_PRINT(t.nodes_.size(), t.nodes_.size(), 6);
   AKS_CHECK_PRINT(t.grads_.size(), t.grads_.size(), 0);
 
-  var_t d = dot(xs, ys);
+  var_t<re_t> d = dot(xs, ys);
 
   AKS_CHECK_VARIABLE(d, 112.0);
 
@@ -1369,7 +1370,7 @@ void test_25() {
   AKS_CHECK_VARIABLE(grad(xs[0]), 7.0);
   AKS_CHECK_VARIABLE(grad(ys[1]), 3.0);
 
-  var_t s = asum(ys);
+  var_t<re_t> s = asum(ys);
   AKS_CHECK_VARIABLE(s, 31.0);
 
   AKS_CHECK_PRINT(t.nodes_.size(), t.nodes_.size(), 15);
@@ -1380,7 +1381,7 @@ void test_25() {
   AKS_CHECK_VARIABLE(grad(xs[0]), 0.0);
   AKS_CHECK_VARIABLE(grad(ys[1]), 1.0);
 
-  var_t g = gsum(xs);
+  var_t<re_t> g = gsum(xs);
   AKS_CHECK_VARIABLE(g, 30.0);
 
   AKS_CHECK_PRINT(t.nodes_.size(), t.nodes_.size(), 62);
@@ -1389,7 +1390,7 @@ void test_25() {
   // backward(g);
   // AKS_CHECK_VARIABLE(grad(xs[0]), 15.0);
 
-  var_t mx = max(xs);
+  var_t<re_t> mx = max(xs);
   AKS_CHECK_VARIABLE(mx, 5.0);
 
   AKS_CHECK_PRINT(t.nodes_.size(), t.nodes_.size(), 62);
@@ -1398,7 +1399,7 @@ void test_25() {
   // backward(mx);
   // AKS_CHECK_VARIABLE(grad(xs[0]), 0.0);
 
-  var_t mn = min(xs);
+  var_t<re_t> mn = min(xs);
   AKS_CHECK_VARIABLE(mn, 2.0);
 
   AKS_CHECK_PRINT(t.nodes_.size(), t.nodes_.size(), 62);
@@ -1407,7 +1408,7 @@ void test_25() {
   // backward(mn);
   // AKS_CHECK_VARIABLE(grad(xs[0]), 1.0);
 
-  var_t mm = mean(ys);
+  var_t<re_t> mm = mean(ys);
   AKS_CHECK_VARIABLE(mm, 10.3333333);
 
   AKS_CHECK_PRINT(t.nodes_.size(), t.nodes_.size(), 65);
@@ -1416,7 +1417,7 @@ void test_25() {
   // backward(mm);
   // AKS_CHECK_VARIABLE(grad(ys[0]), 1.0);
 
-  var_t gm = gmean(xs);
+  var_t<re_t> gm = gmean(xs);
   AKS_CHECK_VARIABLE(gm, 10.0);
 
   AKS_CHECK_PRINT(t.nodes_.size(), t.nodes_.size(), 68);
