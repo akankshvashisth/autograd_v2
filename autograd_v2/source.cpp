@@ -3,7 +3,11 @@
 
 namespace {
 constexpr bool QUIET_PASS = true;
+constexpr bool QUIET_FAIL = true;
+constexpr bool ASSERT_FAIL = false;
 static size_t TOTAL_TEST_RUN = 0;
+static size_t TOTAL_TEST_PASS = 0;
+static size_t TOTAL_TEST_FAIL = 0;
 
 #define AKS_PRINT(EXPR)                                                        \
   std::cout << std::setprecision(15) << #EXPR << " = " << EXPR << std::endl
@@ -15,17 +19,24 @@ static size_t TOTAL_TEST_RUN = 0;
 #define AKS_CHECK_PRINT(EXPR, EXPR_VAL, EXPECTED)                              \
   do {                                                                         \
     ++TOTAL_TEST_RUN;                                                          \
-    const double diff__ = std::abs(double(EXPR_VAL) - double(EXPECTED));       \
-    if (std::isnan(double(EXPR_VAL)) || diff__ > 1e-4) {                       \
-      std::cout << std::setprecision(18) << "\nCHECK FAILED: " << #EXPR        \
-                << " = " << double(EXPR_VAL) << " != " << EXPECTED << " ("     \
-                << diff__ << ")"                                               \
-                << " on line " << __LINE__ << " in " << __FILE__ << std::endl; \
-      assert(true);                                                            \
+    const re_t diff__ = std::abs(re_t(EXPR_VAL) - re_t(EXPECTED));             \
+    if (std::isnan(re_t(EXPR_VAL)) || diff__ > 1e-4) {                         \
+      ++TOTAL_TEST_FAIL;                                                       \
+      if (!QUIET_FAIL) {                                                       \
+        std::cout << std::setprecision(18) << "\nCHECK FAILED: " << #EXPR      \
+                  << " = " << re_t(EXPR_VAL) << " != " << EXPECTED << " ("     \
+                  << diff__ << ")"                                             \
+                  << " on line " << __LINE__ << " in " << __FILE__             \
+                  << std::endl;                                                \
+      } else {                                                                 \
+        std::cout << "+";                                                      \
+      }                                                                        \
+      assert(!ASSERT_FAIL);                                                    \
     } else {                                                                   \
+      ++TOTAL_TEST_PASS;                                                       \
       if (!QUIET_PASS) {                                                       \
         std::cout << std::setprecision(15) << "____pass____: " << #EXPR        \
-                  << " = " << double(EXPR_VAL) << std::endl;                   \
+                  << " = " << re_t(EXPR_VAL) << std::endl;                     \
       } else {                                                                 \
         std::cout << ".";                                                      \
       }                                                                        \
@@ -57,7 +68,7 @@ void test_01() {
   AKS_CHECK_VARIABLE(y, 5);
   AKS_CHECK_VARIABLE(f, 6561);
   vec_t<re_t> expected = {17496,  40824,  81648, 136080, 181440,
-                            181440, 120960, 40320, 0};
+                          181440, 120960, 40320, 0};
 
   for (int i = 0; i < 9; ++i) {
     t.zero_grad();
@@ -116,7 +127,7 @@ void test_02() {
   AKS_CHECK_VARIABLE(y, 8);
   AKS_CHECK_VARIABLE(f, 6561);
   vec_t<re_t> expected = {17496,  40824,  81648, 136080, 181440,
-                            181440, 120960, 40320, 0};
+                          181440, 120960, 40320, 0};
 
   for (int i = 0; i < 9; ++i) {
     t.zero_grad();
@@ -141,7 +152,7 @@ void test_03() {
   AKS_CHECK_VARIABLE(x, 3);
   AKS_CHECK_VARIABLE(f, 6561);
   vec_t<re_t> expected = {17496,  40824,  81648, 136080, 181440,
-                            181440, 120960, 40320, 0};
+                          181440, 120960, 40320, 0};
 
   for (int i = 0; i < 9; ++i) {
     t.zero_grad();
@@ -189,10 +200,9 @@ void test_05() {
   t.push_state();
   AKS_CHECK_VARIABLE(x, 1);
   AKS_CHECK_VARIABLE(f, 15.1542622415);
-  vec_t<re_t> expected = {
-      41.1935556747, 153.169249515,     681.502130990,
-      3478.70705883, 19853.4050763,     124537.473663,
-      848181.148608, 6213971.481006121, 48615295.31226263};
+  vec_t<re_t> expected = {41.1935556747, 153.169249515,     681.502130990,
+                          3478.70705883, 19853.4050763,     124537.473663,
+                          848181.148608, 6213971.481006121, 48615295.31226263};
 
   for (int i = 0; i < 9; ++i) {
     t.zero_grad();
@@ -349,7 +359,7 @@ void test_10() {
   const var_t y = t.new_variable(3);
 
   var_t f = (x ^ y) * exp(x) * exp(y) / (log(y) - (1.0 / sqrt(y))) +
-               sin(cos(x) * y * 0.5);
+            sin(cos(x) * y * 0.5);
 
   t.push_state();
   AKS_CHECK_VARIABLE(x, 2);
@@ -427,7 +437,7 @@ void test_13() {
   const var_t y = t.new_variable(3);
 
   var_t f = (x ^ y) * exp(x) * exp(y) / (log(y) - (1.0 / sqrt(y))) +
-               sin(cos(x) * y * 0.5);
+            sin(cos(x) * y * 0.5);
 
   f = f * f;
 
@@ -467,9 +477,9 @@ void test_14() {
   AKS_CHECK_VARIABLE(y, 0.5);
   AKS_CHECK_VARIABLE(f, 0.766163700778299);
   vec_t<re_t> expected = {-0.401093405500755, 1.843951799064022e-02,
-                            -3.976997195889043, 27.94021527444540,
-                            -443.0134618423613, 7768.010873937546,
-                            -172271.1423942442, 4465339.597362671};
+                          -3.976997195889043, 27.94021527444540,
+                          -443.0134618423613, 7768.010873937546,
+                          -172271.1423942442, 4465339.597362671};
 
   for (int i = 0; i < 8; ++i) {
     t.zero_grad();
@@ -505,9 +515,9 @@ void test_15() {
     AKS_CHECK_VARIABLE(z, 5);
     AKS_CHECK_VARIABLE(f, 28524.51801677098);
     vec_t<re_t> expected = {60026.82047554181, 129114.1367025926,
-                              278095.5325188761, 602778.7382787745,
-                              1314895.486871684, 2690006.380087323,
-                              5081703.820602682, 25346219.35630465};
+                            278095.5325188761, 602778.7382787745,
+                            1314895.486871684, 2690006.380087323,
+                            5081703.820602682, 25346219.35630465};
 
     for (int i = 0; i < 8; ++i) {
       t.zero_grad();
@@ -528,7 +538,7 @@ void test_15() {
     AKS_CHECK_VARIABLE(z, 5);
     AKS_CHECK_VARIABLE(f, 28524.51801677098);
     vec_t<re_t> expected = {88164.61349317656, 275673.9023954568,
-                              868833.1020929292, 2754733.9246692426};
+                            868833.1020929292, 2754733.9246692426};
 
     for (int i = 0; i < 2; ++i) {
       t.zero_grad();
@@ -549,8 +559,8 @@ void test_15() {
     AKS_CHECK_VARIABLE(z, 5);
     AKS_CHECK_VARIABLE(f, 28524.51801677098);
     vec_t<re_t> expected = {21792.84737554386, 13945.72372321069,
-                              7309.719265308730, 3064.054319595382,
-                              1006.296282742556};
+                            7309.719265308730, 3064.054319595382,
+                            1006.296282742556};
 
     for (int i = 0; i < 2; ++i) {
       t.zero_grad();
@@ -644,7 +654,7 @@ void test_16() {
     AKS_CHECK_VARIABLE(f, 2560000);
 
     vec_t<re_t> expected = {5120000,  8960000, 13440000, 16800000, 16800000,
-                              12600000, 6300000, 1575000,  0,        0};
+                            12600000, 6300000, 1575000,  0,        0};
 
     for (int i = 0; i < 4; ++i) {
       t.zero_grad();
@@ -693,8 +703,8 @@ void test_17() {
     AKS_CHECK_VARIABLE(f, 4444.444444444444);
 
     vec_t<re_t> expected = {8000,   15911.11111111111, 36586.66666666666,
-                              98784,  310986.6666666667, 1125040,
-                              4609920};
+                            98784,  310986.6666666667, 1125040,
+                            4609920};
 
     for (int i = 0; i < 7; ++i) {
       t.zero_grad();
@@ -719,9 +729,9 @@ void test_17() {
     AKS_CHECK_VARIABLE(f, 4444.444444444444);
 
     vec_t<re_t> expected = {592.5925925925926,  355.5555555555555,
-                              -252.8395061728395, 370.8312757201646,
-                              -674.2386831275720, 1460.850480109739,
-                              -3670.855052583448};
+                            -252.8395061728395, 370.8312757201646,
+                            -674.2386831275720, 1460.850480109739,
+                            -3670.855052583448};
 
     for (int i = 0; i < 7; ++i) {
       t.zero_grad();
@@ -745,8 +755,8 @@ void test_17() {
     AKS_CHECK_VARIABLE(f, 4444.444444444444);
 
     vec_t<re_t> expected = {0,      1111.111111111111,  -1666.666666666667,
-                              3750,   -10416.66666666667, 34375,
-                              -131250};
+                            3750,   -10416.66666666667, 34375,
+                            -131250};
 
     for (int i = 0; i < 7; ++i) {
       t.zero_grad();
@@ -774,9 +784,9 @@ void test_18() {
   AKS_CHECK_VARIABLE(x, 2);
   AKS_CHECK_VARIABLE(f, -0.376226238713693);
   vec_t<re_t> expected = {-0.944550600009225, 0.344604639299095,
-                            1.084903225704792,  -0.203449504037272,
-                            -1.677246351875284, 0.706056911049653,
-                            0.669408525907504,  -6.722648455610035};
+                          1.084903225704792,  -0.203449504037272,
+                          -1.677246351875284, 0.706056911049653,
+                          0.669408525907504,  -6.722648455610035};
 
   for (int i = 0; i < 8; ++i) {
     t.zero_grad();
@@ -824,7 +834,7 @@ void test_19() {
   AKS_CHECK_PRINT("nr02", NR(3.0, [](auto x) { return x * x - 16; }), 4.0);
   AKS_CHECK_PRINT("nr03", NR(5.0, [](auto x) { return x * x * x - 27; }), 3.0);
   AKS_CHECK_PRINT("nr04", NR(3.0, [](auto x) { return (x ^ 4) - 16; }), 2.0);
-  AKS_CHECK_PRINT("nr05", NR(0.2, [](auto x) { return sin(x); }), 0.0);
+  AKS_CHECK_PRINT("nr05", NR(0.2, [](auto x) { return sin(x); }), re_t(0.0));
   AKS_CHECK_PRINT("nr06", NR(1.2, [](auto x) { return sin(x); }),
                   std::numbers::pi_v<double>);
 }
@@ -1339,7 +1349,7 @@ void test_25() {
 
   tape_t t;
 
-  auto to_variable = [&](double v) { return t.new_variable(v); };
+  auto to_variable = [&](re_t v) { return t.new_variable(v); };
 
   vec_t<var_t> xs = zipped_op(to_variable, vec_re_t{2.0, 3.0, 5.0});
   vec_t<var_t> ys = zipped_op(to_variable, vec_re_t{7.0, 11.0, 13.0});
@@ -1446,6 +1456,8 @@ int main() {
   test_02();
   test_01();
 
-  std::cout << "\nDONE: " << TOTAL_TEST_RUN << " checks" << std::endl;
+  std::cout << "\ntotal  : " << TOTAL_TEST_RUN
+            << "\npassed : " << TOTAL_TEST_PASS
+            << "\nfailed : " << TOTAL_TEST_FAIL << std::endl;
   return 0;
 }

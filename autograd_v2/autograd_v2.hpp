@@ -207,7 +207,7 @@ struct sqrt_mix {
 };
 
 struct relu_mix {
-  static re_t apply(re_t a) { return (a > 0.0) ? a : 0.0; }
+  static re_t apply(re_t a) { return (a > re_t(0.0)) ? a : re_t(0.0); }
   static back_f bf() { return {"relu", backward}; }
   static void backward(tape_t *t, node *n);
 };
