@@ -4,7 +4,7 @@
 namespace {
 using double_t = double;
 using float_t = float;
-// using vec_re_t = aks::vec_t<double_t>;
+// using vec_re_t = aks::vec_t<ag_d::value_t>;
 
 template <typename value_type> struct autograd_traits {
   using value_t = value_type;
@@ -80,8 +80,8 @@ void test_01() {
   AKS_CHECK_VARIABLE(x, 3);
   AKS_CHECK_VARIABLE(y, 5);
   AKS_CHECK_VARIABLE(f, 6561);
-  vec_t<double_t> expected = {17496,  40824,  81648, 136080, 181440,
-                              181440, 120960, 40320, 0};
+  vec_t<ag_d::value_t> expected = {17496,  40824,  81648, 136080, 181440,
+                                   181440, 120960, 40320, 0};
 
   for (int i = 0; i < 9; ++i) {
     t.zero_grad();
@@ -139,8 +139,8 @@ void test_02() {
   AKS_CHECK_VARIABLE(x, 3);
   AKS_CHECK_VARIABLE(y, 8);
   AKS_CHECK_VARIABLE(f, 6561);
-  vec_t<double_t> expected = {17496,  40824,  81648, 136080, 181440,
-                              181440, 120960, 40320, 0};
+  vec_t<ag_d::value_t> expected = {17496,  40824,  81648, 136080, 181440,
+                                   181440, 120960, 40320, 0};
 
   for (int i = 0; i < 9; ++i) {
     t.zero_grad();
@@ -154,7 +154,7 @@ void test_02() {
 }
 
 void test_02_f() {
-  std::cout << "\ntest_02" << std::endl;
+  std::cout << "\ntest_02_f" << std::endl;
   using namespace aks;
   using ag = ag_f;
   ag::tape_t t;
@@ -167,8 +167,8 @@ void test_02_f() {
   AKS_CHECK_VARIABLE(x, 3);
   AKS_CHECK_VARIABLE(y, 8);
   AKS_CHECK_VARIABLE(f, 6561);
-  vec_t<double_t> expected = {17496,  40824,  81648, 136080, 181440,
-                              181440, 120960, 40320, 0};
+  vec_t<ag_d::value_t> expected = {17496,  40824,  81648, 136080, 181440,
+                                   181440, 120960, 40320, 0};
 
   for (int i = 0; i < 9; ++i) {
     t.zero_grad();
@@ -192,8 +192,8 @@ void test_03() {
   t.push_state();
   AKS_CHECK_VARIABLE(x, 3);
   AKS_CHECK_VARIABLE(f, 6561);
-  vec_t<double_t> expected = {17496,  40824,  81648, 136080, 181440,
-                              181440, 120960, 40320, 0};
+  vec_t<ag_d::value_t> expected = {17496,  40824,  81648, 136080, 181440,
+                                   181440, 120960, 40320, 0};
 
   for (int i = 0; i < 9; ++i) {
     t.zero_grad();
@@ -217,7 +217,7 @@ void test_04() {
   t.push_state();
   AKS_CHECK_VARIABLE(x, 3);
   AKS_CHECK_VARIABLE(f, 3);
-  vec_t<double_t> expected = {1, 0, 0};
+  vec_t<ag_d::value_t> expected = {1, 0, 0};
 
   for (int i = 0; i < 3; ++i) {
     t.zero_grad();
@@ -241,7 +241,7 @@ void test_05() {
   t.push_state();
   AKS_CHECK_VARIABLE(x, 1);
   AKS_CHECK_VARIABLE(f, 15.1542622415);
-  vec_t<double_t> expected = {
+  vec_t<ag_d::value_t> expected = {
       41.1935556747, 153.169249515,     681.502130990,
       3478.70705883, 19853.4050763,     124537.473663,
       848181.148608, 6213971.481006121, 48615295.31226263};
@@ -267,9 +267,9 @@ void test_06_01() {
   ag_d::var_t f = sin(x);
 
   t.push_state();
-  AKS_CHECK_VARIABLE(x, std::numbers::pi_v<double_t> / 2.0);
+  AKS_CHECK_VARIABLE(x, std::numbers::pi_v<ag_d::value_t> / 2.0);
   AKS_CHECK_VARIABLE(f, 1);
-  vec_t<double_t> expected = {0, -1, 0, 1, 0, -1, 0, 1, 0};
+  vec_t<ag_d::value_t> expected = {0, -1, 0, 1, 0, -1, 0, 1, 0};
 
   for (int i = 0; i < 9; ++i) {
     t.zero_grad();
@@ -321,7 +321,7 @@ void test_07() {
   t.push_state();
   AKS_CHECK_VARIABLE(x, 2);
   AKS_CHECK_VARIABLE(f, -0.364157274408385);
-  vec_t<double_t> expected = {
+  vec_t<ag_d::value_t> expected = {
       -0.953510374699207, 0.314131605670404,  1.160290265129676,
       -0.127327515031308, -2.350487124618407, 3.030458853334027,
       -1.213075727292083, -63.66425006790054, 463.4642048661533};
@@ -353,7 +353,7 @@ void test_08() {
   AKS_CHECK_VARIABLE(x, 2);
   AKS_CHECK_VARIABLE(y, 3);
   AKS_CHECK_VARIABLE(f, 2277.166893402295);
-  vec_t<double_t> expected = {
+  vec_t<ag_d::value_t> expected = {
       5693.271663432962, 12529.22628253501, 24487.49989506043,
       43265.42685712199, 70607.95619169925, 108326.8348413039,
       157615.1751647243, 218966.3917658434, 304763.4639907167};
@@ -385,7 +385,7 @@ void test_09() {
   AKS_CHECK_VARIABLE(x, 2);
   AKS_CHECK_VARIABLE(y, 3);
   AKS_CHECK_VARIABLE(f, 2.127248903688577);
-  vec_t<double_t> expected = {
+  vec_t<ag_d::value_t> expected = {
       0.234088640404172, -0.794171421323257, 0.421052063524680,
       0.403203519062006, -0.966405900729128, 0.315910699048416,
       1.943245437957466, -3.596458737095583, -1.901001142886110};
@@ -416,7 +416,7 @@ void test_10() {
   AKS_CHECK_VARIABLE(x, 2);
   AKS_CHECK_VARIABLE(y, 3);
   AKS_CHECK_VARIABLE(f, 2277.166893402295);
-  vec_t<double_t> expected = {
+  vec_t<ag_d::value_t> expected = {
       5693.271663432962, 12529.22628253501, 24487.49989506043,
       43265.42685712199, 70607.95619169925, 108326.8348413039,
       157615.1751647243, 218966.3917658434, 304763.4639907167};
@@ -443,7 +443,7 @@ void test_11() {
   t.push_state();
   AKS_CHECK_VARIABLE(x, 0.5);
   AKS_CHECK_VARIABLE(f, 0.5);
-  vec_t<double_t> expected = {1, 0, 0};
+  vec_t<ag_d::value_t> expected = {1, 0, 0};
 
   for (int i = 0; i < 3; ++i) {
     t.zero_grad();
@@ -467,7 +467,7 @@ void test_12() {
   t.push_state();
   AKS_CHECK_VARIABLE(x, -0.5);
   AKS_CHECK_VARIABLE(f, 0);
-  vec_t<double_t> expected = {0, 0, 0};
+  vec_t<ag_d::value_t> expected = {0, 0, 0};
 
   for (int i = 0; i < 3; ++i) {
     t.zero_grad();
@@ -497,7 +497,7 @@ void test_13() {
   AKS_CHECK_VARIABLE(x, 2);
   AKS_CHECK_VARIABLE(y, 3);
   AKS_CHECK_VARIABLE(f, 5185489.060407462);
-  vec_t<double_t> expected = {
+  vec_t<ag_d::value_t> expected = {
       25929059.49422991, 121888963.0483667, 539517981.8810239,
       2254246176.856630, 8920979033.396202, 33572462599.63692,
       120670307539.7625, 416043043171.6418, 1381489125066.02686};
@@ -529,10 +529,10 @@ void test_14() {
   AKS_CHECK_VARIABLE(x, 0.25);
   AKS_CHECK_VARIABLE(y, 0.5);
   AKS_CHECK_VARIABLE(f, 0.766163700778299);
-  vec_t<double_t> expected = {-0.401093405500755, 1.843951799064022e-02,
-                              -3.976997195889043, 27.94021527444540,
-                              -443.0134618423613, 7768.010873937546,
-                              -172271.1423942442, 4465339.597362671};
+  vec_t<ag_d::value_t> expected = {-0.401093405500755, 1.843951799064022e-02,
+                                   -3.976997195889043, 27.94021527444540,
+                                   -443.0134618423613, 7768.010873937546,
+                                   -172271.1423942442, 4465339.597362671};
 
   for (int i = 0; i < 8; ++i) {
     t.zero_grad();
@@ -568,10 +568,10 @@ void test_15() {
     AKS_CHECK_VARIABLE(y, 3);
     AKS_CHECK_VARIABLE(z, 5);
     AKS_CHECK_VARIABLE(f, 28524.51801677098);
-    vec_t<double_t> expected = {60026.82047554181, 129114.1367025926,
-                                278095.5325188761, 602778.7382787745,
-                                1314895.486871684, 2690006.380087323,
-                                5081703.820602682, 25346219.35630465};
+    vec_t<ag_d::value_t> expected = {60026.82047554181, 129114.1367025926,
+                                     278095.5325188761, 602778.7382787745,
+                                     1314895.486871684, 2690006.380087323,
+                                     5081703.820602682, 25346219.35630465};
 
     for (int i = 0; i < 8; ++i) {
       t.zero_grad();
@@ -591,8 +591,8 @@ void test_15() {
     AKS_CHECK_VARIABLE(y, 3);
     AKS_CHECK_VARIABLE(z, 5);
     AKS_CHECK_VARIABLE(f, 28524.51801677098);
-    vec_t<double_t> expected = {88164.61349317656, 275673.9023954568,
-                                868833.1020929292, 2754733.9246692426};
+    vec_t<ag_d::value_t> expected = {88164.61349317656, 275673.9023954568,
+                                     868833.1020929292, 2754733.9246692426};
 
     for (int i = 0; i < 2; ++i) {
       t.zero_grad();
@@ -612,9 +612,9 @@ void test_15() {
     AKS_CHECK_VARIABLE(y, 3);
     AKS_CHECK_VARIABLE(z, 5);
     AKS_CHECK_VARIABLE(f, 28524.51801677098);
-    vec_t<double_t> expected = {21792.84737554386, 13945.72372321069,
-                                7309.719265308730, 3064.054319595382,
-                                1006.296282742556};
+    vec_t<ag_d::value_t> expected = {21792.84737554386, 13945.72372321069,
+                                     7309.719265308730, 3064.054319595382,
+                                     1006.296282742556};
 
     for (int i = 0; i < 2; ++i) {
       t.zero_grad();
@@ -657,7 +657,7 @@ void test_16() {
     AKS_CHECK_VARIABLE(z, 4);
     AKS_CHECK_VARIABLE(f, 2560000);
 
-    vec_t<double_t> expected = {
+    vec_t<ag_d::value_t> expected = {
         4096000,     5734400,     6881280,     6881280, 5505024,
         3303014.400, 1321205.760, 264241.1520, 0,       0};
 
@@ -682,7 +682,7 @@ void test_16() {
     AKS_CHECK_VARIABLE(z, 4);
     AKS_CHECK_VARIABLE(f, 2560000);
 
-    vec_t<double_t> expected = {
+    vec_t<ag_d::value_t> expected = {
         4096000,     5734400,     6881280,     6881280, 5505024,
         3303014.400, 1321205.760, 264241.1520, 0,       0};
 
@@ -707,8 +707,9 @@ void test_16() {
     AKS_CHECK_VARIABLE(z, 4);
     AKS_CHECK_VARIABLE(f, 2560000);
 
-    vec_t<double_t> expected = {5120000,  8960000, 13440000, 16800000, 16800000,
-                                12600000, 6300000, 1575000,  0,        0};
+    vec_t<ag_d::value_t> expected = {5120000,  8960000,  13440000, 16800000,
+                                     16800000, 12600000, 6300000,  1575000,
+                                     0,        0};
 
     for (int i = 0; i < 4; ++i) {
       t.zero_grad();
@@ -756,9 +757,10 @@ void test_17() {
     AKS_CHECK_VARIABLE(z, 4);
     AKS_CHECK_VARIABLE(f, 4444.444444444444);
 
-    vec_t<double_t> expected = {8000,   15911.11111111111, 36586.66666666666,
-                                98784,  310986.6666666667, 1125040,
-                                4609920};
+    vec_t<ag_d::value_t> expected = {
+        8000,   15911.11111111111, 36586.66666666666,
+        98784,  310986.6666666667, 1125040,
+        4609920};
 
     for (int i = 0; i < 7; ++i) {
       t.zero_grad();
@@ -782,10 +784,10 @@ void test_17() {
     AKS_CHECK_VARIABLE(z, 4);
     AKS_CHECK_VARIABLE(f, 4444.444444444444);
 
-    vec_t<double_t> expected = {592.5925925925926,  355.5555555555555,
-                                -252.8395061728395, 370.8312757201646,
-                                -674.2386831275720, 1460.850480109739,
-                                -3670.855052583448};
+    vec_t<ag_d::value_t> expected = {592.5925925925926,  355.5555555555555,
+                                     -252.8395061728395, 370.8312757201646,
+                                     -674.2386831275720, 1460.850480109739,
+                                     -3670.855052583448};
 
     for (int i = 0; i < 7; ++i) {
       t.zero_grad();
@@ -808,9 +810,10 @@ void test_17() {
     AKS_CHECK_VARIABLE(z, 4);
     AKS_CHECK_VARIABLE(f, 4444.444444444444);
 
-    vec_t<double_t> expected = {0,      1111.111111111111,  -1666.666666666667,
-                                3750,   -10416.66666666667, 34375,
-                                -131250};
+    vec_t<ag_d::value_t> expected = {
+        0,      1111.111111111111,  -1666.666666666667,
+        3750,   -10416.66666666667, 34375,
+        -131250};
 
     for (int i = 0; i < 7; ++i) {
       t.zero_grad();
@@ -838,10 +841,10 @@ void test_18() {
   t.push_state();
   AKS_CHECK_VARIABLE(x, 2);
   AKS_CHECK_VARIABLE(f, -0.376226238713693);
-  vec_t<double_t> expected = {-0.944550600009225, 0.344604639299095,
-                              1.084903225704792,  -0.203449504037272,
-                              -1.677246351875284, 0.706056911049653,
-                              0.669408525907504,  -6.722648455610035};
+  vec_t<ag_d::value_t> expected = {-0.944550600009225, 0.344604639299095,
+                                   1.084903225704792,  -0.203449504037272,
+                                   -1.677246351875284, 0.706056911049653,
+                                   0.669408525907504,  -6.722648455610035};
 
   for (int i = 0; i < 8; ++i) {
     t.zero_grad();
