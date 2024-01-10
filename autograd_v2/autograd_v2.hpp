@@ -276,9 +276,10 @@ template <typename real_t> struct pow_mix {
 template <typename mix> struct u_op_mix : mix {
   using mix::apply;
   using mix::bf;
-  static re_t fwd(re_t const &a) { return apply(a); }
-  static var_t<re_t> fwd(var_t<re_t> const &a) {
-    node<re_t> *new_node = a.t().new_node();
+  using value_type = mix::value_type;
+  static value_type fwd(value_type const &a) { return apply(a); }
+  static var_t<value_type> fwd(var_t<value_type> const &a) {
+    node<value_type> *new_node = a.t().new_node();
     new_node->v_ = fwd(a.n().v_);
     new_node->backwards_ = bf();
     new_node->ls_.push_back(a.np());
@@ -289,9 +290,13 @@ template <typename mix> struct u_op_mix : mix {
 template <typename mix> struct op_mix : mix {
   using mix::apply;
   using mix::bf;
-  static re_t fwd(re_t const &a, re_t const &b) { return apply(a, b); }
-  static var_t<re_t> fwd(var_t<re_t> const &a, var_t<re_t> const &b) {
-    node<re_t> *new_node = a.t().new_node();
+  using value_type = mix::value_type;
+  static value_type fwd(value_type const &a, value_type const &b) {
+    return apply(a, b);
+  }
+  static var_t<value_type> fwd(var_t<value_type> const &a,
+                               var_t<value_type> const &b) {
+    node<value_type> *new_node = a.t().new_node();
     new_node->v_ = fwd(a.n().v_, b.n().v_);
     new_node->backwards_ = bf();
     new_node->ls_.push_back(a.np());
@@ -344,17 +349,19 @@ template <typename mix> struct v_u_to_1_op_mix : mix {
   using mix::apply;
   using mix::bf;
   using mix::start;
-  static re_t fwd_impl(vec_t<var_t<re_t>> const &a, vec_t<node<re_t> *> &ls) {
-    re_t ret = start();
+  using value_type = mix::value_type;
+  static value_type fwd_impl(vec_t<var_t<value_type>> const &a,
+                             vec_t<node<value_type> *> &ls) {
+    value_type ret = start();
     for (int i = 0; i < a.size(); i++) {
       apply(ret, a[i].n().v_);
       ls.push_back(a[i].np());
     }
     return ret;
   }
-  static var_t<re_t> fwd(vec_t<var_t<re_t>> const &a) {
+  static var_t<value_type> fwd(vec_t<var_t<value_type>> const &a) {
     assert(a.size());
-    node<re_t> *new_node = a.front().t().new_node();
+    node<value_type> *new_node = a.front().t().new_node();
     new_node->v_ = fwd_impl(a, new_node->ls_);
     new_node->backwards_ = bf();
     return var_t{&a.front().t(), new_node};
@@ -365,9 +372,12 @@ template <typename mix> struct v_b_to_1_op_mix : mix {
   using mix::apply;
   using mix::bf;
   using mix::start;
-  static re_t fwd_impl(vec_t<var_t<re_t>> const &a, vec_t<var_t<re_t>> const &b,
-                       vec_t<node<re_t> *> &ls, vec_t<node<re_t> *> &rs) {
-    re_t ret = start();
+  using value_type = mix::value_type;
+  static value_type fwd_impl(vec_t<var_t<value_type>> const &a,
+                             vec_t<var_t<value_type>> const &b,
+                             vec_t<node<value_type> *> &ls,
+                             vec_t<node<value_type> *> &rs) {
+    value_type ret = start();
     for (int i = 0; i < a.size(); i++) {
       apply(ret, a[i].n().v_, b[i].n().v_);
       ls.push_back(a[i].np());
@@ -375,11 +385,11 @@ template <typename mix> struct v_b_to_1_op_mix : mix {
     }
     return ret;
   }
-  static var_t<re_t> fwd(vec_t<var_t<re_t>> const &a,
-                         vec_t<var_t<re_t>> const &b) {
+  static var_t<value_type> fwd(vec_t<var_t<value_type>> const &a,
+                               vec_t<var_t<value_type>> const &b) {
     assert(a.size());
     assert(a.size() == b.size());
-    node<re_t> *new_node = a.front().t().new_node();
+    node<value_type> *new_node = a.front().t().new_node();
     new_node->v_ = fwd_impl(a, b, new_node->ls_, new_node->rs_);
     new_node->backwards_ = bf();
     return var_t{&a.front().t(), new_node};
