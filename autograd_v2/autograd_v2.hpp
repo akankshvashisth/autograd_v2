@@ -28,6 +28,14 @@ namespace aks {
 namespace vcl_detail {
 #ifndef AKS_NO_VCL
 
+template <typename T> struct is_vcl_vec : std::false_type {};
+
+template <> struct is_vcl_vec<vcl::Vec2d> : std::true_type {};
+
+template <> struct is_vcl_vec<vcl::Vec4d> : std::true_type {};
+
+template <> struct is_vcl_vec<vcl::Vec8d> : std::true_type {};
+
 vcl::Vec2d vec_sin(const vcl::Vec2d &v) {
   return {std::sin(v[0]), std::sin(v[1])};
 }
@@ -223,7 +231,7 @@ template <typename real_t> struct exp_mix {
   using value_type = real_t;
   static value_type apply(value_type a) {
 #ifndef AKS_NO_VCL
-    if constexpr (std::is_same<value_type, vcl::Vec2d>::value) {
+    if constexpr (::aks::vcl_detail::is_vcl_vec<value_type>::value) {
       using namespace ::aks::vcl_detail;
       return vec_exp(a);
     }
@@ -244,7 +252,7 @@ template <typename real_t> struct log_mix {
   using value_type = real_t;
   static value_type apply(value_type a) {
 #ifndef AKS_NO_VCL
-    if constexpr (std::is_same<value_type, vcl::Vec2d>::value) {
+    if constexpr (::aks::vcl_detail::is_vcl_vec<value_type>::value) {
       using namespace ::aks::vcl_detail;
       return vec_log(a);
     }
@@ -265,7 +273,7 @@ template <typename real_t> struct tanh_mix {
   using value_type = real_t;
   static value_type apply(value_type a) {
 #ifndef AKS_NO_VCL
-    if constexpr (std::is_same<value_type, vcl::Vec2d>::value) {
+    if constexpr (::aks::vcl_detail::is_vcl_vec<value_type>::value) {
       using namespace ::aks::vcl_detail;
       return vec_tanh(a);
     }
@@ -293,7 +301,7 @@ template <typename real_t> struct sin_mix {
   using value_type = real_t;
   static value_type apply(value_type a) {
 #ifndef AKS_NO_VCL
-    if constexpr (std::is_same<value_type, vcl::Vec2d>::value) {
+    if constexpr (::aks::vcl_detail::is_vcl_vec<value_type>::value) {
       using namespace ::aks::vcl_detail;
       return vec_sin(a);
     }
@@ -314,7 +322,7 @@ template <typename real_t> struct cos_mix {
   using value_type = real_t;
   static value_type apply(value_type a) {
 #ifndef AKS_NO_VCL
-    if constexpr (std::is_same<value_type, vcl::Vec2d>::value) {
+    if constexpr (::aks::vcl_detail::is_vcl_vec<value_type>::value) {
       using namespace ::aks::vcl_detail;
       return vec_cos(a);
     }
