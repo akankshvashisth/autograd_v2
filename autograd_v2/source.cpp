@@ -270,7 +270,8 @@ void test_07() {
   const var_t<re_t> x = t.new_variable(2);
 
   var_t<re_t> f =
-      ((sin(x) ^ 2.0) / (log(x + 50) ^ 2.0)) * (1.0 - (exp(x) ^ (-x))) + cos(x);
+      ((sin(x) ^ 2.0) / (log(x + 50.0) ^ 2.0)) * (1.0 - (exp(x) ^ (-x))) +
+      cos(x);
 
   t.push_state();
   AKS_CHECK_VARIABLE(x, 2);
@@ -329,7 +330,7 @@ void test_09() {
   const var_t<re_t> x = t.new_variable(2);
   const var_t<re_t> y = t.new_variable(3);
 
-  var_t<re_t> f = sin(y * tanh(x / 4)) / tanh(y / 6);
+  var_t<re_t> f = sin(y * tanh(x / 4.0)) / tanh(y / 6.0);
 
   t.push_state();
   AKS_CHECK_VARIABLE(x, 2);
@@ -777,7 +778,7 @@ void test_18() {
   const var_t<re_t> x = t.new_variable(2);
 
   var_t<re_t> f =
-      ((sin(x) ^ 2.0) / (log(x + 50) ^ 2.0)) * tanh((1.0 - (exp(x) ^ (-x)))) +
+      ((sin(x) ^ 2.0) / (log(x + 50.0) ^ 2.0)) * tanh((1.0 - (exp(x) ^ (-x)))) +
       cos(x);
 
   t.push_state();
@@ -830,10 +831,12 @@ void test_19() {
     return x.value();
   };
 
-  AKS_CHECK_PRINT("nr01", NR(3.0, [](auto x) { return x * x - 4; }), 2.0);
-  AKS_CHECK_PRINT("nr02", NR(3.0, [](auto x) { return x * x - 16; }), 4.0);
-  AKS_CHECK_PRINT("nr03", NR(5.0, [](auto x) { return x * x * x - 27; }), 3.0);
-  AKS_CHECK_PRINT("nr04", NR(3.0, [](auto x) { return (x ^ 4) - 16; }), 2.0);
+  AKS_CHECK_PRINT("nr01", NR(3.0, [](auto x) { return x * x - 4.0; }), 2.0);
+  AKS_CHECK_PRINT("nr02", NR(3.0, [](auto x) { return x * x - 16.0; }), 4.0);
+  AKS_CHECK_PRINT("nr03", NR(5.0, [](auto x) { return x * x * x - 27.0; }),
+                  3.0);
+  AKS_CHECK_PRINT("nr04", NR(3.0, [](auto x) { return (x ^ 4.0) - 16.0; }),
+                  2.0);
   AKS_CHECK_PRINT("nr05", NR(0.2, [](auto x) { return sin(x); }), re_t(0.0));
   AKS_CHECK_PRINT("nr06", NR(1.2, [](auto x) { return sin(x); }),
                   std::numbers::pi_v<double>);
@@ -855,7 +858,7 @@ void test_20() {
 
   auto DIFF = [&](size_t I, size_t J, size_t K) {
     t.push_state();
-    var_t<re_t> f = (x * y * z) ^ 4;
+    var_t<re_t> f = (x * y * z) ^ 4.0;
 
     for (size_t i = 0; i < I; ++i) {
       t.zero_grad();
@@ -959,7 +962,7 @@ void test_21() {
 
   auto DIFF = [&](size_t I, size_t J, size_t K) {
     t.push_state();
-    var_t<re_t> f = ((z + (x * y)) ^ 4) / ((z - ((x * y) ^ 4)));
+    var_t<re_t> f = ((z + (x * y)) ^ 4.0) / ((z - ((x * y) ^ 4.0)));
     for (size_t k = 0; k < K; ++k) {
       t.zero_grad();
       backward(f);
