@@ -4,7 +4,7 @@
 namespace {
 using double_t = double;
 using float_t = float;
-using vec_re_t = aks::vec_t<double_t>;
+// using vec_re_t = aks::vec_t<double_t>;
 
 template <typename value_type> struct autograd_traits {
   using value_t = value_type;
@@ -153,13 +153,41 @@ void test_02() {
   t.pop_state();
 }
 
+void test_02_f() {
+  std::cout << "\ntest_02" << std::endl;
+  using namespace aks;
+  using ag = ag_f;
+  ag::tape_t t;
+  const ag::var_t x = t.new_variable(3.0);
+  const ag::var_t y = t.new_variable(8.0);
+
+  ag::var_t f = pow(x, y);
+
+  t.push_state();
+  AKS_CHECK_VARIABLE(x, 3);
+  AKS_CHECK_VARIABLE(y, 8);
+  AKS_CHECK_VARIABLE(f, 6561);
+  vec_t<double_t> expected = {17496,  40824,  81648, 136080, 181440,
+                              181440, 120960, 40320, 0};
+
+  for (int i = 0; i < 9; ++i) {
+    t.zero_grad();
+    backward(f);
+    f = grad(x);
+    AKS_CHECK_VARIABLE(f, expected[i]);
+  }
+  AKS_CHECK_PRINT(t.nodes_.size(), t.nodes_.size(), 456774);
+  AKS_CHECK_PRINT(t.grads_.size(), t.grads_.size(), 126296);
+  t.pop_state();
+}
+
 void test_03() {
   std::cout << "\ntest_03" << std::endl;
   using namespace aks;
   ag_d::tape_t t;
   const ag_d::var_t x = t.new_variable(3.0);
 
-  ag_d::var_t f = pow(x, 8.0);
+  ag_d::var_t f = pow(x, ag_d::value_t(8.0));
 
   t.push_state();
   AKS_CHECK_VARIABLE(x, 3);
@@ -233,7 +261,8 @@ void test_06_01() {
   std::cout << "\ntest_06_01" << std::endl;
   using namespace aks;
   ag_d::tape_t t;
-  const ag_d::var_t x = t.new_variable(std::numbers::pi_v<double_t> / 2.0);
+  const ag_d::var_t x =
+      t.new_variable(std::numbers::pi_v<ag_d::value_t> / ag_d::value_t(2.0));
 
   ag_d::var_t f = sin(x);
 
@@ -257,14 +286,15 @@ void test_06_02() {
   std::cout << "\ntest_06_02" << std::endl;
   using namespace aks;
   ag_d::tape_t t;
-  const ag_d::var_t x = t.new_variable(std::numbers::pi_v<double_t> / 2.0);
+  const ag_d::var_t x =
+      t.new_variable(std::numbers::pi_v<ag_d::value_t> / ag_d::value_t(2.0));
 
   ag_d::var_t f = cos(x);
 
   t.push_state();
-  AKS_CHECK_VARIABLE(x, std::numbers::pi_v<double_t> / 2.0);
+  AKS_CHECK_VARIABLE(x, std::numbers::pi_v<ag_d::value_t> / ag_d::value_t(2.0));
   AKS_CHECK_VARIABLE(f, 0);
-  vec_t<double_t> expected = {-1, 0, 1, 0, -1, 0, 1, 0, -1};
+  vec_t<ag_d::value_t> expected = {-1, 0, 1, 0, -1, 0, 1, 0, -1};
 
   for (int i = 0; i < 9; ++i) {
     t.zero_grad();
@@ -283,9 +313,10 @@ void test_07() {
   ag_d::tape_t t;
   const ag_d::var_t x = t.new_variable(2);
 
-  ag_d::var_t f =
-      ((sin(x) ^ 2.0) / (log(x + 50.0) ^ 2.0)) * (1.0 - (exp(x) ^ (-x))) +
-      cos(x);
+  ag_d::var_t f = ((sin(x) ^ ag_d::value_t(2.0)) /
+                   (log(x + ag_d::value_t(50.0)) ^ ag_d::value_t(2.0))) *
+                      (ag_d::value_t(1.0) - (exp(x) ^ (-x))) +
+                  cos(x);
 
   t.push_state();
   AKS_CHECK_VARIABLE(x, 2);
@@ -315,7 +346,8 @@ void test_08() {
   const ag_d::var_t y = t.new_variable(3);
 
   ag_d::var_t f =
-      (x ^ y) * exp(x) * exp(y) / (log(y) - (y ^ -0.5)) + sin(cos(x) * y * 0.5);
+      (x ^ y) * exp(x) * exp(y) / (log(y) - (y ^ ag_d::value_t(-0.5))) +
+      sin(cos(x) * y * ag_d::value_t(0.5));
 
   t.push_state();
   AKS_CHECK_VARIABLE(x, 2);
@@ -344,7 +376,8 @@ void test_09() {
   const ag_d::var_t x = t.new_variable(2);
   const ag_d::var_t y = t.new_variable(3);
 
-  ag_d::var_t f = sin(y * tanh(x / 4.0)) / tanh(y / 6.0);
+  ag_d::var_t f =
+      sin(y * tanh(x / ag_d::value_t(4.0))) / tanh(y / ag_d::value_t(6.0));
 
   // AKS_PRINT(as_dot(t));
 
@@ -375,8 +408,9 @@ void test_10() {
   const ag_d::var_t x = t.new_variable(2);
   const ag_d::var_t y = t.new_variable(3);
 
-  ag_d::var_t f = (x ^ y) * exp(x) * exp(y) / (log(y) - (1.0 / sqrt(y))) +
-                  sin(cos(x) * y * 0.5);
+  ag_d::var_t f =
+      (x ^ y) * exp(x) * exp(y) / (log(y) - (ag_d::value_t(1.0) / sqrt(y))) +
+      sin(cos(x) * y * ag_d::value_t(0.5));
 
   t.push_state();
   AKS_CHECK_VARIABLE(x, 2);
@@ -453,8 +487,9 @@ void test_13() {
   const ag_d::var_t x = t.new_variable(2);
   const ag_d::var_t y = t.new_variable(3);
 
-  ag_d::var_t f = (x ^ y) * exp(x) * exp(y) / (log(y) - (1.0 / sqrt(y))) +
-                  sin(cos(x) * y * 0.5);
+  ag_d::var_t f =
+      (x ^ y) * exp(x) * exp(y) / (log(y) - (ag_d::value_t(1.0) / sqrt(y))) +
+      sin(cos(x) * y * ag_d::value_t(0.5));
 
   f = f * f;
 
@@ -485,7 +520,8 @@ void test_14() {
   const ag_d::var_t x = t.new_variable(0.25);
   const ag_d::var_t y = t.new_variable(0.5);
 
-  ag_d::var_t f = (x ^ y) / (log(y) - (1.0 / sqrt(y))) + sin(cos(x));
+  ag_d::var_t f =
+      (x ^ y) / (log(y) - (ag_d::value_t(1.0) / sqrt(y))) + sin(cos(x));
 
   f = sqrt(f);
 
@@ -518,9 +554,10 @@ void test_15() {
   const ag_d::var_t z = t.new_variable(5);
 
   auto F = [&]() {
-    return ((x + z) ^ y) * exp(0.25 * sqrt(z) * y * x) * exp(0.25 * (y + x)) /
-               (log(x + y) - (1.0 / sqrt(x * y))) +
-           sin(z * cos(x) * y * 0.5);
+    return ((x + z) ^ y) * exp(ag_d::value_t(0.25) * sqrt(z) * y * x) *
+               exp(ag_d::value_t(0.25) * (y + x)) /
+               (log(x + y) - (ag_d::value_t(1.0) / sqrt(x * y))) +
+           sin(z * cos(x) * y * ag_d::value_t(0.5));
   };
 
   {
@@ -607,7 +644,7 @@ void test_16() {
     for (int i = 0; i < 3; ++i) {
       f *= f;
     }
-    return f / 10000.0;
+    return f / ag_d::value_t(10000.0);
   };
 
   {
@@ -793,9 +830,10 @@ void test_18() {
   ag_d::tape_t t;
   const ag_d::var_t x = t.new_variable(2);
 
-  ag_d::var_t f =
-      ((sin(x) ^ 2.0) / (log(x + 50.0) ^ 2.0)) * tanh((1.0 - (exp(x) ^ (-x)))) +
-      cos(x);
+  ag_d::var_t f = ((sin(x) ^ ag_d::value_t(2.0)) /
+                   (log(x + ag_d::value_t(50.0)) ^ ag_d::value_t(2.0))) *
+                      tanh((ag_d::value_t(1.0) - (exp(x) ^ (-x)))) +
+                  cos(x);
 
   t.push_state();
   AKS_CHECK_VARIABLE(x, 2);
@@ -821,7 +859,7 @@ void test_19() {
   std::cout << "\ntest_19" << std::endl;
   using namespace aks;
 
-  auto NR = [](double_t guess, auto f, double_t tolerance = 1e-6) {
+  auto NR = [](ag_d::value_t guess, auto f, ag_d::value_t tolerance = 1e-6) {
     ag_d::tape_t tape;
 
     auto derivative = [&tape](ag_d::var_t fx, ag_d::var_t x) {
@@ -829,7 +867,7 @@ void test_19() {
       tape.zero_grad();
       backward(fx);
       ag_d::var_t dfdx = grad(x);
-      double r_dfdx = dfdx.value();
+      ag_d::value_t r_dfdx = dfdx.value();
       tape.pop_state();
       return r_dfdx;
     };
@@ -847,15 +885,21 @@ void test_19() {
     return x.value();
   };
 
-  AKS_CHECK_PRINT("nr01", NR(3.0, [](auto x) { return x * x - 4.0; }), 2.0);
-  AKS_CHECK_PRINT("nr02", NR(3.0, [](auto x) { return x * x - 16.0; }), 4.0);
-  AKS_CHECK_PRINT("nr03", NR(5.0, [](auto x) { return x * x * x - 27.0; }),
-                  3.0);
-  AKS_CHECK_PRINT("nr04", NR(3.0, [](auto x) { return (x ^ 4.0) - 16.0; }),
-                  2.0);
-  AKS_CHECK_PRINT("nr05", NR(0.2, [](auto x) { return sin(x); }),
-                  double_t(0.0));
-  AKS_CHECK_PRINT("nr06", NR(1.2, [](auto x) { return sin(x); }),
+  AKS_CHECK_PRINT(
+      "nr01", NR(3.0, [](auto x) { return x * x - ag_d::value_t(4.0); }), 2.0);
+  AKS_CHECK_PRINT(
+      "nr02", NR(3.0, [](auto x) { return x * x - ag_d::value_t(16.0); }), 4.0);
+  AKS_CHECK_PRINT(
+      "nr03", NR(5.0, [](auto x) { return x * x * x - ag_d::value_t(27.0); }),
+      3.0);
+  AKS_CHECK_PRINT(
+      "nr04",
+      NR(3.0,
+         [](auto x) { return (x ^ ag_d::value_t(4.0)) - ag_d::value_t(16.0); }),
+      2.0);
+  AKS_CHECK_PRINT("nr05", NR(ag_d::value_t(0.2), [](auto x) { return sin(x); }),
+                  ag_d::value_t(0.0));
+  AKS_CHECK_PRINT("nr06", NR(ag_d::value_t(1.2), [](auto x) { return sin(x); }),
                   std::numbers::pi_v<double>);
 }
 
@@ -875,7 +919,7 @@ void test_20() {
 
   auto DIFF = [&](size_t I, size_t J, size_t K) {
     t.push_state();
-    ag_d::var_t f = (x * y * z) ^ 4.0;
+    ag_d::var_t f = (x * y * z) ^ ag_d::value_t(4.0);
 
     for (size_t i = 0; i < I; ++i) {
       t.zero_grad();
@@ -979,7 +1023,8 @@ void test_21() {
 
   auto DIFF = [&](size_t I, size_t J, size_t K) {
     t.push_state();
-    ag_d::var_t f = ((z + (x * y)) ^ 4.0) / ((z - ((x * y) ^ 4.0)));
+    ag_d::var_t f = ((z + (x * y)) ^ ag_d::value_t(4.0)) /
+                    ((z - ((x * y) ^ ag_d::value_t(4.0))));
     for (size_t k = 0; k < K; ++k) {
       t.zero_grad();
       backward(f);
@@ -1114,7 +1159,8 @@ void test_23() {
 
   auto DIFF = [&](size_t I, size_t J, size_t K) {
     t.push_state();
-    ag_d::var_t f = (((x * y) ^ 2.0) + ((x ^ z) - (y ^ z))) / (sqrt(z - x));
+    ag_d::var_t f =
+        (((x * y) ^ ag_d::value_t(2.0)) + ((x ^ z) - (y ^ z))) / (sqrt(z - x));
     for (size_t k = 0; k < K; ++k) {
       t.zero_grad();
       backward(f);
@@ -1370,10 +1416,12 @@ void test_25() {
 
   ag_d::tape_t t;
 
-  auto to_variable = [&](double_t v) { return t.new_variable(v); };
+  auto to_variable = [&](ag_d::value_t v) { return t.new_variable(v); };
 
-  vec_t<ag_d::var_t> xs = zipped_op(to_variable, vec_re_t{2.0, 3.0, 5.0});
-  vec_t<ag_d::var_t> ys = zipped_op(to_variable, vec_re_t{7.0, 11.0, 13.0});
+  vec_t<ag_d::var_t> xs =
+      zipped_op(to_variable, vec_t<ag_d::value_t>{2.0, 3.0, 5.0});
+  vec_t<ag_d::var_t> ys =
+      zipped_op(to_variable, vec_t<ag_d::value_t>{7.0, 11.0, 13.0});
 
   AKS_CHECK_PRINT(t.nodes_.size(), t.nodes_.size(), 6);
   AKS_CHECK_PRINT(t.grads_.size(), t.grads_.size(), 0);
@@ -1474,6 +1522,7 @@ int main() {
   test_05();
   test_04();
   test_03();
+  test_02_f();
   test_02();
   test_01();
 

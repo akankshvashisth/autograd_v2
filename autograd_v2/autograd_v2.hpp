@@ -589,7 +589,7 @@ void sqrt_mix<real_t>::backward(tape_t<real_t> *t, node<real_t> *n) {
   var_t<real_t> &fg = grad(f);
   var_t<real_t> l{t, n->ls_.front()};
 
-  auto df = [&]() { return 0.5 * fg / sqrt(l); };
+  auto df = [&]() { return real_t{0.5} *  fg / sqrt(l); };
 
   backward_grad_accumulate(l, df);
 }
@@ -657,7 +657,7 @@ void tanh_mix<real_t>::backward(tape_t<real_t> *t, node<real_t> *n) {
   var_t<real_t> &fg = grad(f);
   var_t<real_t> l{t, n->ls_.front()};
 
-  auto df = [&]() { return (1.0 - (f ^ 2.0)) * fg; };
+  auto df = [&]() { return (real_t{1.0} - (f ^ real_t{2.0})) * fg; };
 
   backward_grad_accumulate(l, df);
 }
@@ -785,7 +785,7 @@ void pow_mix<real_t>::backward(tape_t<real_t> *t, node<real_t> *n) {
   var_t<real_t> l{t, n->ls_.front()};
   var_t<real_t> r{t, n->rs_.front()};
 
-  auto dfdl = [&]() { return fg * (r * pow(l, r - 1.0)); };
+  auto dfdl = [&]() { return fg * (r * pow(l, r - real_t(1.0))); };
   auto dfdr = [&]() { return fg * f * log(l); };
 
   backward_grad_accumulate(l, dfdl);
