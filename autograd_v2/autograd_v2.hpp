@@ -54,27 +54,27 @@ auto zipped_op(F &&f, T &&t, Ts &&...ts) {
 
 //} // namespace detail
 
-struct tape_t;
+template <typename real_t> struct tape_t;
 
 template <typename real_t> struct node;
 
 struct var_t;
 
 struct var_t {
-  var_t(tape_t *t, node<re_t> *n) : t_(t), n_(n) {}
+  var_t(tape_t<re_t> *t, node<re_t> *n) : t_(t), n_(n) {}
   var_t() : t_(nullptr), n_(nullptr) {}
 
   var_t(var_t const &r) = default;
   var_t(var_t &&r) = default;
 
-  var_t(re_t r, tape_t *t);
+  var_t(re_t r, tape_t<re_t> *t);
 
   var_t clone() const { return var_t{value(), t_}; }
 
   re_t value() const;
 
-  tape_t &t() { return *t_; }
-  tape_t &t() const { return *t_; }
+  tape_t<re_t> &t() { return *t_; }
+  tape_t<re_t> &t() const { return *t_; }
   node<re_t> &n() { return *n_; }
   node<re_t> const &n() const { return *n_; }
   node<re_t> *np() const { return n_; }
@@ -93,11 +93,11 @@ struct var_t {
   bool is_alive() const { return t_ != nullptr && n_ != nullptr; }
 
 private:
-  mutable tape_t *t_ = nullptr;
+  mutable tape_t<re_t> *t_ = nullptr;
   node<re_t> *n_ = nullptr;
 };
 
-typedef void (*back_f_t)(tape_t *, node<re_t> *);
+typedef void (*back_f_t)(tape_t<re_t> *, node<re_t> *);
 
 struct back_f {
   const char *n_ = nullptr;
@@ -113,16 +113,18 @@ template <typename real_t> struct node {
   bool is_leaf() const { return ls_.empty() && rs_.empty(); }
 };
 
-struct tape_t {
+template <typename real_t> struct tape_t {
+  using value_type = real_t;
+  using node_type = node<value_type>;
 
-  node<re_t> *new_node() {
+  node_type *new_node() {
     auto ret = &(nodes_.emplace_back());
     ret->idx_ = nodes_.size() - 1;
     return ret;
   }
 
-  var_t new_variable(re_t const &r) {
-    node<re_t> *n = new_node();
+  var_t new_variable(value_type const &r) {
+    node_type *n = new_node();
     n->v_ = r;
     return {this, n};
   }
@@ -153,7 +155,7 @@ struct tape_t {
     }
   }
 
-  deq_t<node<re_t>> nodes_;
+  deq_t<node_type> nodes_;
   vec_t<var_t> grads_;
   stack_t<std::tuple<idx_t, idx_t>> saved_state_;
 };
@@ -168,85 +170,85 @@ auto const &grad(var_t const &n) { return n.t().grads_[n.n().idx_]; }
 struct exp_mix {
   static re_t apply(re_t a) { CHECK_NAN(std::exp(a)); }
   static back_f bf() { return {"exp", backward}; }
-  static void backward(tape_t *t, node<re_t> *n);
+  static void backward(tape_t<re_t> *t, node<re_t> *n);
 };
 
 struct log_mix {
   static re_t apply(re_t a) { CHECK_NAN(std::log(a)); }
   static back_f bf() { return {"log", backward}; }
-  static void backward(tape_t *t, node<re_t> *n);
+  static void backward(tape_t<re_t> *t, node<re_t> *n);
 };
 
 struct tanh_mix {
   static re_t apply(re_t a) { return std::tanh(a); }
   static back_f bf() { return {"tanh", backward}; }
-  static void backward(tape_t *t, node<re_t> *n);
+  static void backward(tape_t<re_t> *t, node<re_t> *n);
 };
 
 struct neg_mix {
   static re_t apply(re_t a) { return -a; }
   static back_f bf() { return {"neg", backward}; }
-  static void backward(tape_t *t, node<re_t> *n);
+  static void backward(tape_t<re_t> *t, node<re_t> *n);
 };
 
 struct sin_mix {
   static re_t apply(re_t a) { CHECK_NAN(std::sin(a)); }
   static back_f bf() { return {"sin", backward}; }
-  static void backward(tape_t *t, node<re_t> *n);
+  static void backward(tape_t<re_t> *t, node<re_t> *n);
 };
 
 struct cos_mix {
   static re_t apply(re_t a) { CHECK_NAN(std::cos(a)); }
   static back_f bf() { return {"cos", backward}; }
-  static void backward(tape_t *t, node<re_t> *n);
+  static void backward(tape_t<re_t> *t, node<re_t> *n);
 };
 
 struct sqrt_mix {
   static re_t apply(re_t a) { CHECK_NAN(std::sqrt(a)); }
   static back_f bf() { return {"sqrt", backward}; }
-  static void backward(tape_t *t, node<re_t> *n);
+  static void backward(tape_t<re_t> *t, node<re_t> *n);
 };
 
 struct relu_mix {
   static re_t apply(re_t a) { return (a > re_t(0.0)) ? a : re_t(0.0); }
   static back_f bf() { return {"relu", backward}; }
-  static void backward(tape_t *t, node<re_t> *n);
+  static void backward(tape_t<re_t> *t, node<re_t> *n);
 };
 
 // struct id_mix {
 //   static re_t apply(re_t a) { return a; }
 //   static back_f bf() { return {"id", backward}; }
-//   static void backward(tape_t *t, node<re_t>*n);
+//   static void backward(tape_t<re_t>*t, node<re_t>*n);
 // };
 
 struct add_mix {
   static re_t apply(re_t a, re_t b) { return a + b; }
   static back_f bf() { return {"add", backward}; }
-  static void backward(tape_t *t, node<re_t> *n);
+  static void backward(tape_t<re_t> *t, node<re_t> *n);
 };
 
 struct sub_mix {
   static re_t apply(re_t a, re_t b) { return a - b; }
   static back_f bf() { return {"sub", backward}; }
-  static void backward(tape_t *t, node<re_t> *n);
+  static void backward(tape_t<re_t> *t, node<re_t> *n);
 };
 
 struct mul_mix {
   static re_t apply(re_t a, re_t b) { return a * b; }
   static back_f bf() { return {"mul", backward}; }
-  static void backward(tape_t *t, node<re_t> *n);
+  static void backward(tape_t<re_t> *t, node<re_t> *n);
 };
 
 struct div_mix {
   static re_t apply(re_t a, re_t b) { return a / b; }
   static back_f bf() { return {"div", backward}; }
-  static void backward(tape_t *t, node<re_t> *n);
+  static void backward(tape_t<re_t> *t, node<re_t> *n);
 };
 
 struct pow_mix {
   static re_t apply(re_t a, re_t b) { return std::pow(a, b); }
   static back_f bf() { return {"pow", backward}; }
-  static void backward(tape_t *t, node<re_t> *n);
+  static void backward(tape_t<re_t> *t, node<re_t> *n);
 };
 
 template <typename mix> struct u_op_mix : mix {
@@ -280,21 +282,21 @@ struct dot_mix {
   static re_t start() { return 0.0; }
   static void apply(re_t &r, re_t a, re_t b) { r += (a * b); }
   static back_f bf() { return {"dot", backward}; }
-  static void backward(tape_t *t, node<re_t> *n);
+  static void backward(tape_t<re_t> *t, node<re_t> *n);
 };
 
 struct asum_mix {
   static re_t start() { return 0.0; }
   static void apply(re_t &r, re_t a) { r += a; }
   static back_f bf() { return {"asum", backward}; }
-  static void backward(tape_t *t, node<re_t> *n);
+  static void backward(tape_t<re_t> *t, node<re_t> *n);
 };
 
 struct gsum_mix {
   static re_t start() { return 1.0; }
   static void apply(re_t &r, re_t a) { r *= a; }
   static back_f bf() { return {"gsum", nullptr}; }
-  static void backward(tape_t *t, node<re_t> *n);
+  static void backward(tape_t<re_t> *t, node<re_t> *n);
 };
 
 // struct max_mix {
@@ -394,7 +396,7 @@ auto operator*(re_t a, var_t b) { return var_t{a, &b.t()} * b; }
 auto operator/(re_t a, var_t b) { return var_t{a, &b.t()} / b; }
 auto operator^(re_t a, var_t b) { return pow(var_t{a, &b.t()}, b); }
 
-var_t::var_t(re_t r, tape_t *t) {
+var_t::var_t(re_t r, tape_t<re_t> *t) {
   t_ = t;
   n_ = t_->new_variable(r).np();
 }
@@ -473,7 +475,7 @@ void backward_set_grad_if_not_alive(var_t &x) {
   }
 }
 
-void sqrt_mix::backward(tape_t *t, node<re_t> *n) {
+void sqrt_mix::backward(tape_t<re_t> *t, node<re_t> *n) {
   var_t f{t, n};
   var_t &fg = grad(f);
   var_t l{t, n->ls_.front()};
@@ -483,7 +485,7 @@ void sqrt_mix::backward(tape_t *t, node<re_t> *n) {
   backward_grad_accumulate(l, df);
 }
 
-void exp_mix::backward(tape_t *t, node<re_t> *n) {
+void exp_mix::backward(tape_t<re_t> *t, node<re_t> *n) {
   var_t f{t, n};
   var_t &fg = grad(f);
   var_t l{t, n->ls_.front()};
@@ -493,7 +495,7 @@ void exp_mix::backward(tape_t *t, node<re_t> *n) {
   backward_grad_accumulate(l, df);
 }
 
-void log_mix::backward(tape_t *t, node<re_t> *n) {
+void log_mix::backward(tape_t<re_t> *t, node<re_t> *n) {
   var_t f{t, n};
   var_t &fg = grad(f);
   var_t l{t, n->ls_.front()};
@@ -503,7 +505,7 @@ void log_mix::backward(tape_t *t, node<re_t> *n) {
   backward_grad_accumulate(l, df);
 }
 
-void neg_mix::backward(tape_t *t, node<re_t> *n) {
+void neg_mix::backward(tape_t<re_t> *t, node<re_t> *n) {
   var_t f{t, n};
   var_t &fg = grad(f);
   var_t l{t, n->ls_.front()};
@@ -513,7 +515,7 @@ void neg_mix::backward(tape_t *t, node<re_t> *n) {
   backward_grad_accumulate(l, df);
 }
 
-void sin_mix::backward(tape_t *t, node<re_t> *n) {
+void sin_mix::backward(tape_t<re_t> *t, node<re_t> *n) {
 
   var_t f{t, n};
   var_t &fg = grad(f);
@@ -524,7 +526,7 @@ void sin_mix::backward(tape_t *t, node<re_t> *n) {
   backward_grad_accumulate(l, df);
 }
 
-void cos_mix::backward(tape_t *t, node<re_t> *n) {
+void cos_mix::backward(tape_t<re_t> *t, node<re_t> *n) {
   var_t f{t, n};
   var_t &fg = grad(f);
   var_t l{t, n->ls_.front()};
@@ -534,7 +536,7 @@ void cos_mix::backward(tape_t *t, node<re_t> *n) {
   backward_grad_accumulate(l, df);
 }
 
-void tanh_mix::backward(tape_t *t, node<re_t> *n) {
+void tanh_mix::backward(tape_t<re_t> *t, node<re_t> *n) {
 
   var_t f{t, n};
   var_t &fg = grad(f);
@@ -545,7 +547,7 @@ void tanh_mix::backward(tape_t *t, node<re_t> *n) {
   backward_grad_accumulate(l, df);
 }
 
-void relu_mix::backward(tape_t *t, node<re_t> *n) {
+void relu_mix::backward(tape_t<re_t> *t, node<re_t> *n) {
 
   var_t f{t, n};
   var_t &fg = grad(f);
@@ -556,7 +558,7 @@ void relu_mix::backward(tape_t *t, node<re_t> *n) {
   backward_grad_accumulate(l, df);
 }
 
-// void id_mix::backward(tape_t *t, node<re_t>*n) {
+// void id_mix::backward(tape_t<re_t>*t, node<re_t>*n) {
 //   var_t f{t, n};
 //   var_t &fg = grad(f);
 //   var_t l{t, n->ls_.front()};
@@ -570,7 +572,7 @@ void relu_mix::backward(tape_t *t, node<re_t> *n) {
 //   grad(l) += grad(l) + fg;
 // }
 
-void dot_mix::backward(tape_t *t, node<re_t> *n) {
+void dot_mix::backward(tape_t<re_t> *t, node<re_t> *n) {
   var_t f{t, n};
   var_t &fg = grad(f);
 
@@ -586,7 +588,7 @@ void dot_mix::backward(tape_t *t, node<re_t> *n) {
   }
 }
 
-void asum_mix::backward(tape_t *t, node<re_t> *n) {
+void asum_mix::backward(tape_t<re_t> *t, node<re_t> *n) {
   var_t f{t, n};
   var_t &fg = grad(f);
 
@@ -597,7 +599,7 @@ void asum_mix::backward(tape_t *t, node<re_t> *n) {
   }
 }
 
-void add_mix::backward(tape_t *t, node<re_t> *n) {
+void add_mix::backward(tape_t<re_t> *t, node<re_t> *n) {
   var_t f{t, n};
   var_t &fg = grad(f);
   var_t l{t, n->ls_.front()};
@@ -610,7 +612,7 @@ void add_mix::backward(tape_t *t, node<re_t> *n) {
   grad(r) += fg;
 }
 
-void sub_mix::backward(tape_t *t, node<re_t> *n) {
+void sub_mix::backward(tape_t<re_t> *t, node<re_t> *n) {
   var_t f{t, n};
   var_t &fg = grad(f);
   var_t l{t, n->ls_.front()};
@@ -623,7 +625,7 @@ void sub_mix::backward(tape_t *t, node<re_t> *n) {
   grad(r) -= fg;
 }
 
-void mul_mix::backward(tape_t *t, node<re_t> *n) {
+void mul_mix::backward(tape_t<re_t> *t, node<re_t> *n) {
   var_t f{t, n};
   var_t &fg = grad(f);
   var_t l{t, n->ls_.front()};
@@ -636,7 +638,7 @@ void mul_mix::backward(tape_t *t, node<re_t> *n) {
   backward_grad_accumulate(r, dfdr);
 }
 
-void div_mix::backward(tape_t *t, node<re_t> *n) {
+void div_mix::backward(tape_t<re_t> *t, node<re_t> *n) {
   var_t f{t, n};
   var_t &fg = grad(f);
   var_t l{t, n->ls_.front()};
@@ -653,7 +655,7 @@ void div_mix::backward(tape_t *t, node<re_t> *n) {
     grad(r) = -dfdr();
 }
 
-void pow_mix::backward(tape_t *t, node<re_t> *n) {
+void pow_mix::backward(tape_t<re_t> *t, node<re_t> *n) {
   var_t f{t, n};
   var_t &fg = grad(f);
   var_t l{t, n->ls_.front()};
@@ -666,7 +668,7 @@ void pow_mix::backward(tape_t *t, node<re_t> *n) {
   backward_grad_accumulate(r, dfdr);
 }
 
-void backward_impl(tape_t *t, node<re_t> *n) {
+void backward_impl(tape_t<re_t> *t, node<re_t> *n) {
   if (n->backwards_.f_ != nullptr) {
     n->backwards_.f_(t, n);
   }
@@ -775,7 +777,7 @@ inline std::string as_dot(var_t iv, size_t i, size_t cnt, size_t start_cnt) {
   return ss.str();
 }
 
-inline std::string as_dot(tape_t &t, size_t start_count = 0) {
+inline std::string as_dot(tape_t<re_t> &t, size_t start_count = 0) {
   auto &data = t.nodes_;
 
   auto to_symbol = [](std::string const &x) -> std::string {

@@ -56,7 +56,7 @@ void test_01() {
   std::cout << "\ntest_01" << std::endl;
   using namespace aks;
 
-  tape_t t;
+  tape_t<re_t> t;
 
   const var_t x = t.new_variable(3.0);
   var_t y = t.new_variable(5.0);
@@ -116,7 +116,7 @@ void test_01() {
 void test_02() {
   std::cout << "\ntest_02" << std::endl;
   using namespace aks;
-  tape_t t;
+  tape_t<re_t> t;
   const var_t x = t.new_variable(3.0);
   const var_t y = t.new_variable(8.0);
 
@@ -143,7 +143,7 @@ void test_02() {
 void test_03() {
   std::cout << "\ntest_03" << std::endl;
   using namespace aks;
-  tape_t t;
+  tape_t<re_t> t;
   const var_t x = t.new_variable(3.0);
 
   var_t f = pow(x, 8.0);
@@ -168,7 +168,7 @@ void test_03() {
 void test_04() {
   std::cout << "\ntest_04" << std::endl;
   using namespace aks;
-  tape_t t;
+  tape_t<re_t> t;
   const var_t x = t.new_variable(3.0);
 
   var_t f = exp(log(exp(log(exp(log(x))))));
@@ -192,7 +192,7 @@ void test_04() {
 void test_05() {
   std::cout << "\ntest_05" << std::endl;
   using namespace aks;
-  tape_t t;
+  tape_t<re_t> t;
   const var_t x = t.new_variable(1);
 
   var_t f = exp(exp(x));
@@ -218,7 +218,7 @@ void test_05() {
 void test_06_01() {
   std::cout << "\ntest_06_01" << std::endl;
   using namespace aks;
-  tape_t t;
+  tape_t<re_t> t;
   const var_t x = t.new_variable(std::numbers::pi_v<re_t> / 2.0);
 
   var_t f = sin(x);
@@ -242,7 +242,7 @@ void test_06_01() {
 void test_06_02() {
   std::cout << "\ntest_06_02" << std::endl;
   using namespace aks;
-  tape_t t;
+  tape_t<re_t> t;
   const var_t x = t.new_variable(std::numbers::pi_v<re_t> / 2.0);
 
   var_t f = cos(x);
@@ -266,7 +266,7 @@ void test_06_02() {
 void test_07() {
   std::cout << "\ntest_07" << std::endl;
   using namespace aks;
-  tape_t t;
+  tape_t<re_t> t;
   const var_t x = t.new_variable(2);
 
   var_t f =
@@ -295,7 +295,7 @@ void test_07() {
 void test_08() {
   std::cout << "\ntest_08" << std::endl;
   using namespace aks;
-  tape_t t;
+  tape_t<re_t> t;
   const var_t x = t.new_variable(2);
   const var_t y = t.new_variable(3);
 
@@ -325,7 +325,7 @@ void test_08() {
 void test_09() {
   std::cout << "\ntest_09" << std::endl;
   using namespace aks;
-  tape_t t;
+  tape_t<re_t> t;
   const var_t x = t.new_variable(2);
   const var_t y = t.new_variable(3);
 
@@ -354,7 +354,7 @@ void test_09() {
 void test_10() {
   std::cout << "\ntest_10" << std::endl;
   using namespace aks;
-  tape_t t;
+  tape_t<re_t> t;
   const var_t x = t.new_variable(2);
   const var_t y = t.new_variable(3);
 
@@ -384,7 +384,7 @@ void test_10() {
 void test_11() {
   std::cout << "\ntest_11" << std::endl;
   using namespace aks;
-  tape_t t;
+  tape_t<re_t> t;
   const var_t x = t.new_variable(0.5);
 
   var_t f = relu(relu(relu(x)));
@@ -408,7 +408,7 @@ void test_11() {
 void test_12() {
   std::cout << "\ntest_12" << std::endl;
   using namespace aks;
-  tape_t t;
+  tape_t<re_t> t;
   const var_t x = t.new_variable(-0.5);
 
   var_t f = relu(relu(relu(x)));
@@ -432,7 +432,7 @@ void test_12() {
 void test_13() {
   std::cout << "\ntest_13" << std::endl;
   using namespace aks;
-  tape_t t;
+  tape_t<re_t> t;
   const var_t x = t.new_variable(2);
   const var_t y = t.new_variable(3);
 
@@ -464,7 +464,7 @@ void test_13() {
 void test_14() {
   std::cout << "\ntest_14" << std::endl;
   using namespace aks;
-  tape_t t;
+  tape_t<re_t> t;
   const var_t x = t.new_variable(0.25);
   const var_t y = t.new_variable(0.5);
 
@@ -495,7 +495,7 @@ void test_14() {
 void test_15() {
   std::cout << "\ntest_15" << std::endl;
   using namespace aks;
-  tape_t t;
+  tape_t<re_t> t;
   const var_t x = t.new_variable(2);
   const var_t y = t.new_variable(3);
   const var_t z = t.new_variable(5);
@@ -579,7 +579,7 @@ void test_16() {
 
   using namespace aks;
 
-  tape_t t;
+  tape_t<re_t> t;
 
   const var_t x = t.new_variable(2);
   const var_t y = t.new_variable(3);
@@ -673,7 +673,7 @@ void test_17() {
 
   using namespace aks;
 
-  tape_t t;
+  tape_t<re_t> t;
 
   const var_t x = t.new_variable(2);
   const var_t y = t.new_variable(3);
@@ -773,7 +773,7 @@ void test_17() {
 void test_18() {
   std::cout << "\ntest_18" << std::endl;
   using namespace aks;
-  tape_t t;
+  tape_t<re_t> t;
   const var_t x = t.new_variable(2);
 
   var_t f =
@@ -805,7 +805,7 @@ void test_19() {
   using namespace aks;
 
   auto NR = [](re_t guess, auto f, re_t tolerance = 1e-6) {
-    tape_t tape;
+    tape_t<re_t> tape;
 
     auto derivative = [&tape](var_t fx, var_t x) {
       tape.push_state();
@@ -843,7 +843,7 @@ void test_20() {
   std::cout << "\ntest_20" << std::endl;
   using namespace aks;
 
-  tape_t t;
+  tape_t<re_t> t;
 
   var_t x = t.new_variable(2.0);
   var_t y = t.new_variable(3.0);
@@ -947,7 +947,7 @@ void test_21() {
   std::cout << "\ntest_21" << std::endl;
   using namespace aks;
 
-  tape_t t;
+  tape_t<re_t> t;
 
   var_t x = t.new_variable(2.0);
   var_t y = t.new_variable(3.0);
@@ -1014,7 +1014,7 @@ void test_22() {
   std::cout << "\ntest_22" << std::endl;
   using namespace aks;
 
-  tape_t t;
+  tape_t<re_t> t;
 
   var_t x = t.new_variable(2.0);
   var_t y = t.new_variable(3.0);
@@ -1081,7 +1081,7 @@ void test_23() {
   std::cout << "\ntest_23" << std::endl;
   using namespace aks;
 
-  tape_t t;
+  tape_t<re_t> t;
 
   var_t x = t.new_variable(2.0);
   var_t y = t.new_variable(3.0);
@@ -1185,7 +1185,7 @@ void test_24_01() {
   std::cout << "\ntest_24_01" << std::endl;
   using namespace aks;
 
-  tape_t t;
+  tape_t<re_t> t;
 
   var_t x = t.new_variable(2.0);
   var_t y = t.new_variable(3.0);
@@ -1243,7 +1243,7 @@ void test_24_02() {
   std::cout << "\ntest_24_02" << std::endl;
   using namespace aks;
 
-  tape_t t;
+  tape_t<re_t> t;
 
   var_t x = t.new_variable(2.0);
   var_t y = t.new_variable(3.0);
@@ -1347,7 +1347,7 @@ void test_25() {
   std::cout << "\ntest_25" << std::endl;
   using namespace aks;
 
-  tape_t t;
+  tape_t<re_t> t;
 
   auto to_variable = [&](re_t v) { return t.new_variable(v); };
 
