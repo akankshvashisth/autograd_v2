@@ -400,7 +400,7 @@ template <typename mix> struct v_b_to_1_op_mix : mix {
 
 #pragma region operator_overloads
 
-// auto identity(var_t<re_t> a) { return u_op_mix<id_mix>::fwd(a); }
+// auto identity(var_t<real_t> a) { return u_op_mix<id_mix>::fwd(a); }
 
 template <typename real_t> auto relu(var_t<real_t> a) {
   return u_op_mix<relu_mix<real_t>>::fwd(a);
@@ -567,7 +567,8 @@ template <typename real_t> var_t<real_t> min(vec_t<var_t<real_t>> const &a) {
 
 #pragma region backward
 
-template <typename F> void backward_grad_accumulate(var_t<re_t> &x, F df) {
+template <typename real_t, typename F>
+void backward_grad_accumulate(var_t<real_t> &x, F df) {
   if (grad(x).is_alive()) {
     grad(x) += df();
   } else {
@@ -575,7 +576,8 @@ template <typename F> void backward_grad_accumulate(var_t<re_t> &x, F df) {
   }
 }
 
-void backward_set_grad_if_not_alive(var_t<re_t> &x) {
+template <typename real_t>
+void backward_set_grad_if_not_alive(var_t<real_t> &x) {
   if (!grad(x).is_alive()) {
     grad(x) = x.t().new_variable(0.0);
   }
@@ -790,13 +792,14 @@ void pow_mix<real_t>::backward(tape_t<real_t> *t, node<real_t> *n) {
   backward_grad_accumulate(r, dfdr);
 }
 
-void backward_impl(tape_t<re_t> *t, node<re_t> *n) {
+template <typename real_t>
+void backward_impl(tape_t<real_t> *t, node<real_t> *n) {
   if (n->backwards_.f_ != nullptr) {
     n->backwards_.f_(t, n);
   }
 }
 
-void backward(var_t<re_t> v) {
+template <typename real_t> void backward(var_t<real_t> v) {
 
   v.t().fill_grads();
 
