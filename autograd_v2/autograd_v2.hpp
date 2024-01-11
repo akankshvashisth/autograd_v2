@@ -36,6 +36,9 @@ template <typename T> struct is_vcl_vec : std::false_type {};
 
 #ifndef AKS_NO_VCL
 
+#define AKS_ENABLE_FOR_VCL_VEC_1(T)                                            \
+  template <typename T, std::enable_if_t<is_vcl_vec<T>::value, int> = true>
+
 template <> struct is_vcl_vec<vcl::Vec2d> : std::true_type {};
 
 template <> struct is_vcl_vec<vcl::Vec4d> : std::true_type {};
@@ -46,30 +49,60 @@ template <typename F> vcl::Vec2d vec_for_each(F f, vcl::Vec2d const &x) {
   return vcl::Vec2d(f(x[0]), f(x[1]));
 }
 
-vcl::Vec2d vec_sin(const vcl::Vec2d &v) { return vcl::sin(v); }
-vcl::Vec2d vec_cos(const vcl::Vec2d &v) { return vcl::cos(v); };
+template <typename F> vcl::Vec4d vec_for_each(F f, vcl::Vec4d const &x) {
+  return vcl::Vec4d(f(x[0]), f(x[1]), f(x[2]), f(x[3]));
+}
 
-vcl::Vec2d vec_tanh(const vcl::Vec2d &v) {
+template <typename F> vcl::Vec8d vec_for_each(F f, vcl::Vec8d const &x) {
+  return vcl::Vec8d(f(x[0]), f(x[1]), f(x[2]), f(x[3]), f(x[4]), f(x[5]),
+                    f(x[6]), f(x[7]));
+}
+
+template <typename F>
+vcl::Vec2d vec_for_each(F f, vcl::Vec2d const &x, vcl::Vec2d const &y) {
+  return vcl::Vec2d(f(x[0], y[0]), f(x[1], y[1]));
+}
+
+template <typename F>
+vcl::Vec4d vec_for_each(F f, vcl::Vec4d const &x, vcl::Vec4d const &y) {
+  return vcl::Vec4d(f(x[0], y[0]), f(x[1], y[1]), f(x[2], y[2]), f(x[3], y[3]));
+}
+
+template <typename F>
+vcl::Vec8d vec_for_each(F f, vcl::Vec8d const &x, vcl::Vec8d const &y) {
+  return vcl::Vec8d(f(x[0], y[0]), f(x[1], y[1]), f(x[2], y[2]), f(x[3], y[3]),
+                    f(x[4], y[4]), f(x[5], y[5]), f(x[6], y[6]), f(x[7], y[7]));
+}
+
+AKS_ENABLE_FOR_VCL_VEC_1(T) auto vec_sin(const T &v) { return vcl::sin(v); }
+
+AKS_ENABLE_FOR_VCL_VEC_1(T) auto vec_cos(const T &v) { return vcl::cos(v); };
+
+AKS_ENABLE_FOR_VCL_VEC_1(T)
+auto vec_tanh(const T &v) {
   return vec_for_each([](const double x) { return std::tanh(x); }, v);
 }
-vcl::Vec2d vec_exp(const vcl::Vec2d &v) { return vcl::exp(v); }
-vcl::Vec2d vec_log(const vcl::Vec2d &v) { return vcl::log(v); }
 
-vcl::Vec2d vec_relu(const vcl::Vec2d &v) {
+AKS_ENABLE_FOR_VCL_VEC_1(T) auto vec_exp(const T &v) { return vcl::exp(v); }
+
+AKS_ENABLE_FOR_VCL_VEC_1(T) auto vec_log(const T &v) { return vcl::log(v); }
+
+AKS_ENABLE_FOR_VCL_VEC_1(T)
+auto vec_relu(const T &v) {
   return vec_for_each([](const double a) { return (a > 0.0) ? a : 0.0; }, v);
 }
 
-vcl::Vec2d vec_sqrt(const vcl::Vec2d &v) { return vcl::sqrt(v); }
+AKS_ENABLE_FOR_VCL_VEC_1(T) auto vec_sqrt(const T &v) { return vcl::sqrt(v); }
 
-vcl::Vec2d vec_pow(const vcl::Vec2d &v, const vcl::Vec2d &t) {
-  return {std::pow(v[0], t[0]), std::pow(v[1], t[1])};
+AKS_ENABLE_FOR_VCL_VEC_1(T)
+auto vec_pow(const T &v, const T &t) {
+  return vec_for_each(
+      [](const double x, const double y) { return std::pow(x, y); }, v, t);
 }
-
-vcl::Vec2d vec_max(const vcl::Vec2d &v, const vcl::Vec2d &t) {
+AKS_ENABLE_FOR_VCL_VEC_1(T) auto vec_max(const T &v, const T &t) {
   return vcl::max(v, t);
 }
-
-vcl::Vec2d vec_min(const vcl::Vec2d &v, const vcl::Vec2d &t) {
+AKS_ENABLE_FOR_VCL_VEC_1(T) auto vec_min(const T &v, const T &t) {
   return vcl::min(v, t);
 }
 
@@ -84,6 +117,19 @@ std::ostream &operator<<(std::ostream &os, const vcl::Vec2d &v) {
   return os;
 }
 
+std::ostream &operator<<(std::ostream &os, const vcl::Vec4d &v) {
+  os << std::setprecision(15) << "(" << v[0] << ", " << v[1] << ", " << v[2]
+     << ", " << v[3] << ")";
+  return os;
+}
+
+std::ostream &operator<<(std::ostream &os, const vcl::Vec8d &v) {
+  os << std::setprecision(15) << "(" << v[0] << ", " << v[1] << ", " << v[2]
+     << ", " << v[3] << ", " << v[4] << ", " << v[5] << ", " << v[6] << ", "
+     << v[7] << ")";
+  return os;
+}
+
 template <typename R, typename T, typename U>
 auto vcl_select(typename R &&s, T &&l, U &&r) {
   return vcl::select(std::forward<R>(s), std::forward<T>(l),
@@ -94,11 +140,15 @@ template <typename T> auto vec_horizontal_or(T &&v) {
   return vcl::horizontal_or(std::forward<T>(v));
 }
 
-template <typename R> R get_first_as(vcl::Vec2d const &v) { return R(v[0]); }
-
 #endif
 
-template <typename R, typename T> R get_first_as(T const &v) { return R(v); }
+template <typename R, typename T> R get_first_as(T const &v) {
+  if constexpr (is_vcl_vec<T>::value) {
+    return R(v[0]);
+  } else {
+    return R(v);
+  }
+}
 
 } // namespace vcl_detail
 

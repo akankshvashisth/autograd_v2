@@ -1560,31 +1560,41 @@ void test_27() {
   std::cout << "\ntest_27" << std::endl;
 #ifndef AKS_NO_VCL
 
-  using namespace aks;
-  using ag = autograd_traits<vcl::Vec2d>;
+  auto test_with = [](auto X) {
+    using namespace aks;
+    using r_t = decltype(X);
+    using ag = autograd_traits<r_t>;
+    using tape_type = typename ag::tape_t;
+    using var_type = typename ag::var_t;
+    using value_type = typename ag::value_t;
 
-  using namespace aks;
-  using namespace vcl;
-  using namespace std;
-  ag::tape_t t;
-  const ag::var_t x = t.new_variable(ag::value_t(std::numbers::pi_v<double_t>) /
-                                     ag::value_t(2.0));
+    using namespace aks;
+    using namespace vcl;
+    using namespace std;
+    tape_type t;
+    const var_type x = t.new_variable(value_type(std::numbers::pi_v<double_t>) /
+                                      value_type(2.0));
 
-  ag::var_t f = sin(x);
+    var_type f = sin(x);
 
-  t.push_state();
-  vec_t<ag_d::value_t> expected = {0, -1, 0, 1, 0, -1, 0, 1, 0};
+    t.push_state();
+    vec_t<value_type> expected = {0, -1, 0, 1, 0, -1, 0, 1, 0};
 
-  for (int i = 0; i < 9; ++i) {
-    t.zero_grad();
-    backward(f);
-    f = grad(x);
-    AKS_CHECK_PRINT(f.value()[0], f.value()[0], expected[i]);
-    AKS_CHECK_PRINT(f.value()[1], f.value()[1], expected[i]);
-  }
-  AKS_CHECK_PRINT(t.nodes_.size(), t.nodes_.size(), 140178);
-  AKS_CHECK_PRINT(t.grads_.size(), t.grads_.size(), 39214);
-  t.pop_state();
+    for (int i = 0; i < 9; ++i) {
+      t.zero_grad();
+      backward(f);
+      f = grad(x);
+      AKS_CHECK_PRINT(f.value()[0], f.value()[0], expected[i]);
+      AKS_CHECK_PRINT(f.value()[1], f.value()[1], expected[i]);
+    }
+    AKS_CHECK_PRINT(t.nodes_.size(), t.nodes_.size(), 140178);
+    AKS_CHECK_PRINT(t.grads_.size(), t.grads_.size(), 39214);
+    t.pop_state();
+  };
+
+  test_with(vcl::Vec2d());
+  test_with(vcl::Vec4d());
+  test_with(vcl::Vec8d());
 
 #endif
 }
