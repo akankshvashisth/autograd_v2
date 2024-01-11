@@ -17,7 +17,7 @@ using ag_d = autograd_traits<double_t>;
 using ag_f = autograd_traits<float_t>;
 
 constexpr bool QUIET_PASS = true;
-constexpr bool QUIET_FAIL = false;
+constexpr bool QUIET_FAIL = true;
 constexpr bool ASSERT_FAIL = false;
 static size_t TOTAL_TEST_RUN = 0;
 static size_t TOTAL_TEST_PASS = 0;
@@ -1560,31 +1560,48 @@ void test_27() {
   std::cout << "\ntest_27" << std::endl;
 #ifndef AKS_NO_VCL
 
-  using namespace aks;
-  using ag = autograd_traits<vcl::Vec2d>;
+  auto test_with = [](auto X, auto Y) {
+    using namespace aks;
+    using r_t = decltype(X);
+    using f_t = decltype(Y);
+    using ag = autograd_traits<r_t>;
+    using tape_type = typename ag::tape_t;
+    using var_type = typename ag::var_t;
+    using value_type = typename ag::value_t;
 
-  using namespace aks;
-  using namespace vcl;
-  using namespace std;
-  ag::tape_t t;
-  const ag::var_t x = t.new_variable(ag::value_t(std::numbers::pi_v<double_t>) /
-                                     ag::value_t(2.0));
+    using namespace aks;
+    using namespace vcl;
+    using namespace std;
+    tape_type t;
+    const var_type x =
+        t.new_variable(value_type(std::numbers::pi_v<f_t>) / value_type(2.0));
 
-  ag::var_t f = sin(x);
+    var_type f = sin(x);
 
-  t.push_state();
-  vec_t<ag_d::value_t> expected = {0, -1, 0, 1, 0, -1, 0, 1, 0};
+    t.push_state();
+    vec_t<value_type> expected = {0, -1, 0, 1, 0, -1, 0, 1, 0};
 
-  for (int i = 0; i < 9; ++i) {
-    t.zero_grad();
-    backward(f);
-    f = grad(x);
-    AKS_CHECK_PRINT(f.value()[0], f.value()[0], expected[i]);
-    AKS_CHECK_PRINT(f.value()[1], f.value()[1], expected[i]);
-  }
-  AKS_CHECK_PRINT(t.nodes_.size(), t.nodes_.size(), 140178);
-  AKS_CHECK_PRINT(t.grads_.size(), t.grads_.size(), 39214);
-  t.pop_state();
+    for (int i = 0; i < 9; ++i) {
+      t.zero_grad();
+      backward(f);
+      f = grad(x);
+      AKS_CHECK_PRINT(f.value()[0], f.value()[0], expected[i]);
+      AKS_CHECK_PRINT(f.value()[1], f.value()[1], expected[i]);
+    }
+    AKS_CHECK_PRINT(t.nodes_.size(), t.nodes_.size(), 140178);
+    AKS_CHECK_PRINT(t.grads_.size(), t.grads_.size(), 39214);
+
+    // AKS_PRINT(as_dot(t));
+
+    t.pop_state();
+  };
+
+  test_with(vcl::Vec2d(), double_t());
+  test_with(vcl::Vec4d(), double_t());
+  test_with(vcl::Vec8d(), double_t());
+  test_with(vcl::Vec4f(), float_t());
+  test_with(vcl::Vec8f(), float_t());
+  test_with(vcl::Vec16f(), float_t());
 
 #endif
 }
