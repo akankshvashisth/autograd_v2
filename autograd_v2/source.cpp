@@ -1589,6 +1589,9 @@ void test_27() {
     }
     AKS_CHECK_PRINT(t.nodes_.size(), t.nodes_.size(), 140178);
     AKS_CHECK_PRINT(t.grads_.size(), t.grads_.size(), 39214);
+
+    // AKS_PRINT(as_dot(t));
+
     t.pop_state();
   };
 

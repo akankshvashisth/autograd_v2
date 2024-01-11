@@ -112,6 +112,21 @@ std::string to_string(const vcl::Vec2d &v) {
   return os.str();
 }
 
+std::string to_string(const vcl::Vec4d &v) {
+  std::stringstream os;
+  os << std::setprecision(15) << "(" << v[0] << ", " << v[1] << ", " << v[2]
+     << ", " << v[3] << ")";
+  return os.str();
+}
+
+std::string to_string(const vcl::Vec8d &v) {
+  std::stringstream os;
+  os << std::setprecision(15) << "(" << v[0] << ", " << v[1] << ", " << v[2]
+     << ", " << v[3] << ", " << v[4] << ", " << v[5] << ", " << v[6] << ", "
+     << v[7] << ")";
+  return os.str();
+}
+
 std::ostream &operator<<(std::ostream &os, const vcl::Vec2d &v) {
   os << std::setprecision(15) << "(" << v[0] << ", " << v[1] << ")";
   return os;
@@ -1096,6 +1111,7 @@ std::ostream &operator<<(std::ostream &o, vec_t<T> const &vs) {
 
 template <typename real_t> std::string to_string(node<real_t> const &v) {
   std::stringstream ss;
+  using namespace aks::vcl_detail;
   ss << v.v_;
   return ss.str();
 }
