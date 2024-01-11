@@ -1,10 +1,11 @@
 
+#define AKS_NO_VCL
+
 #include "autograd_v2.hpp"
 
 namespace {
 using double_t = double;
 using float_t = float;
-// using vec_re_t = aks::vec_t<ag_d::value_t>;
 
 template <typename value_type> struct autograd_traits {
   using value_t = value_type;
@@ -16,13 +17,14 @@ using ag_d = autograd_traits<double_t>;
 using ag_f = autograd_traits<float_t>;
 
 constexpr bool QUIET_PASS = true;
-constexpr bool QUIET_FAIL = true;
+constexpr bool QUIET_FAIL = false;
 constexpr bool ASSERT_FAIL = false;
 static size_t TOTAL_TEST_RUN = 0;
 static size_t TOTAL_TEST_PASS = 0;
 static size_t TOTAL_TEST_FAIL = 0;
 
 #define AKS_PRINT(EXPR)                                                        \
+  using namespace aks::vcl_detail;                                             \
   std::cout << std::setprecision(15) << #EXPR << " = " << EXPR << std::endl
 
 #define AKS_PRINT_AS(NAME, EXPR)                                               \
@@ -31,14 +33,18 @@ static size_t TOTAL_TEST_FAIL = 0;
 
 #define AKS_CHECK_PRINT(EXPR, EXPR_VAL, EXPECTED)                              \
   do {                                                                         \
+    using namespace aks::vcl_detail;                                           \
     ++TOTAL_TEST_RUN;                                                          \
-    const double_t diff__ = std::abs(double_t(EXPR_VAL) - double_t(EXPECTED)); \
-    if (std::isnan(double_t(EXPR_VAL)) || diff__ > 1e-4) {                     \
+    const double_t diff__ =                                                    \
+        std::abs(aks::vcl_detail::get_first_as<double>(EXPR_VAL) -             \
+                 aks::vcl_detail::get_first_as<double>(EXPECTED));             \
+    if (std::isnan(aks::vcl_detail::get_first_as<double>(EXPR_VAL)) ||         \
+        diff__ > 1e-4) {                                                       \
       ++TOTAL_TEST_FAIL;                                                       \
       if (!QUIET_FAIL) {                                                       \
         std::cout << std::setprecision(18) << "\nCHECK FAILED: " << #EXPR      \
-                  << " = " << double_t(EXPR_VAL) << " != " << EXPECTED << " (" \
-                  << diff__ << ")"                                             \
+                  << " = " << EXPR_VAL << " != " << EXPECTED << " (" << diff__ \
+                  << ")"                                                       \
                   << " on line " << __LINE__ << " in " << __FILE__             \
                   << std::endl;                                                \
       } else {                                                                 \
@@ -49,7 +55,8 @@ static size_t TOTAL_TEST_FAIL = 0;
       ++TOTAL_TEST_PASS;                                                       \
       if (!QUIET_PASS) {                                                       \
         std::cout << std::setprecision(15) << "____pass____: " << #EXPR        \
-                  << " = " << double_t(EXPR_VAL) << std::endl;                 \
+                  << " = " << aks::vcl_detail::get_first_as<double>(EXPR_VAL)  \
+                  << std::endl;                                                \
       } else {                                                                 \
         std::cout << ".";                                                      \
       }                                                                        \
@@ -262,12 +269,12 @@ void test_06_01() {
   using namespace aks;
   ag_d::tape_t t;
   const ag_d::var_t x =
-      t.new_variable(std::numbers::pi_v<ag_d::value_t> / ag_d::value_t(2.0));
+      t.new_variable(std::numbers::pi_v<double_t> / ag_d::value_t(2.0));
 
   ag_d::var_t f = sin(x);
 
   t.push_state();
-  AKS_CHECK_VARIABLE(x, std::numbers::pi_v<ag_d::value_t> / 2.0);
+  AKS_CHECK_VARIABLE(x, std::numbers::pi_v<double_t> / 2.0);
   AKS_CHECK_VARIABLE(f, 1);
   vec_t<ag_d::value_t> expected = {0, -1, 0, 1, 0, -1, 0, 1, 0};
 
@@ -287,12 +294,12 @@ void test_06_02() {
   using namespace aks;
   ag_d::tape_t t;
   const ag_d::var_t x =
-      t.new_variable(std::numbers::pi_v<ag_d::value_t> / ag_d::value_t(2.0));
+      t.new_variable(std::numbers::pi_v<double_t> / ag_d::value_t(2.0));
 
   ag_d::var_t f = cos(x);
 
   t.push_state();
-  AKS_CHECK_VARIABLE(x, std::numbers::pi_v<ag_d::value_t> / ag_d::value_t(2.0));
+  AKS_CHECK_VARIABLE(x, std::numbers::pi_v<double_t> / ag_d::value_t(2.0));
   AKS_CHECK_VARIABLE(f, 0);
   vec_t<ag_d::value_t> expected = {-1, 0, 1, 0, -1, 0, 1, 0, -1};
 
@@ -878,12 +885,20 @@ void test_19() {
     ag_d::var_t x = tape.new_variable(guess);
     ag_d::var_t fx = f(x);
 
-    while (std::abs(fx.value()) > tolerance) {
-      x = x - fx / derivative(fx, x);
-      fx = f(x);
-      // AKS_PRINT(x);
-      // AKS_PRINT(fx);
-    };
+    if constexpr (aks::vcl_detail::is_vcl_vec<ag_d::value_t>::value) {
+      using namespace aks::vcl_detail;
+      while (vec_horizontal_or(abs(fx.value()) > tolerance)) {
+        x = x - fx / derivative(fx, x);
+        fx = f(x);
+        // AKS_PRINT(x);
+        // AKS_PRINT(fx);
+      };
+    } else {
+      while (abs(fx.value()) > tolerance) {
+        x = x - fx / derivative(fx, x);
+        fx = f(x);
+      };
+    }
 
     return x.value();
   };
@@ -939,7 +954,7 @@ void test_20() {
       backward(f);
       f = grad(z);
     }
-    double result = f.value();
+    ag_d::value_t result = f.value();
     t.pop_state();
     return result;
   };
@@ -1044,7 +1059,7 @@ void test_21() {
       f = grad(x);
     }
 
-    double result = f.value();
+    ag_d::value_t result = f.value();
     t.pop_state();
     return result;
   };
@@ -1112,7 +1127,7 @@ void test_22() {
       f = grad(x);
     }
 
-    double result = f.value();
+    ag_d::value_t result = f.value();
     t.pop_state();
     return result;
   };
@@ -1180,7 +1195,7 @@ void test_23() {
       f = grad(x);
     }
 
-    double result = f.value();
+    ag_d::value_t result = f.value();
     t.pop_state();
     return result;
   };
@@ -1285,7 +1300,7 @@ void test_24_01() {
       f = grad(x);
     }
 
-    double result = f.value();
+    ag_d::value_t result = f.value();
     t.pop_state();
     return result;
   };
@@ -1342,7 +1357,7 @@ void test_24_02() {
       f = grad(x);
     }
 
-    double result = f.value();
+    ag_d::value_t result = f.value();
     t.pop_state();
     return result;
   };
@@ -1461,45 +1476,125 @@ void test_25() {
   // backward(g);
   // AKS_CHECK_VARIABLE(grad(xs[0]), 15.0);
 
-  ag_d::var_t mx = max(xs);
-  AKS_CHECK_VARIABLE(mx, 5.0);
+  AKS_CHECK_VARIABLE(g, 30.0);
 
-  AKS_CHECK_PRINT(t.nodes_.size(), t.nodes_.size(), 62);
-  AKS_CHECK_PRINT(t.grads_.size(), t.grads_.size(), 15);
+  if constexpr (!aks::vcl_detail::is_vcl_vec<ag_d::value_t>::value) {
 
-  // backward(mx);
-  // AKS_CHECK_VARIABLE(grad(xs[0]), 0.0);
+    ag_d::var_t mx = max(xs);
+    AKS_CHECK_VARIABLE(mx, 5.0);
 
-  ag_d::var_t mn = min(xs);
-  AKS_CHECK_VARIABLE(mn, 2.0);
+    AKS_CHECK_PRINT(t.nodes_.size(), t.nodes_.size(), 62);
+    AKS_CHECK_PRINT(t.grads_.size(), t.grads_.size(), 15);
 
-  AKS_CHECK_PRINT(t.nodes_.size(), t.nodes_.size(), 62);
-  AKS_CHECK_PRINT(t.grads_.size(), t.grads_.size(), 15);
+    // backward(mx);
+    // AKS_CHECK_VARIABLE(grad(xs[0]), 0.0);
 
-  // backward(mn);
-  // AKS_CHECK_VARIABLE(grad(xs[0]), 1.0);
+    ag_d::var_t mn = min(xs);
+    AKS_CHECK_VARIABLE(mn, 2.0);
 
-  ag_d::var_t mm = mean(ys);
-  AKS_CHECK_VARIABLE(mm, 10.3333333);
+    AKS_CHECK_PRINT(t.nodes_.size(), t.nodes_.size(), 62);
+    AKS_CHECK_PRINT(t.grads_.size(), t.grads_.size(), 15);
 
-  AKS_CHECK_PRINT(t.nodes_.size(), t.nodes_.size(), 65);
-  AKS_CHECK_PRINT(t.grads_.size(), t.grads_.size(), 15);
+    // backward(mn);
+    // AKS_CHECK_VARIABLE(grad(xs[0]), 1.0);
 
-  // backward(mm);
-  // AKS_CHECK_VARIABLE(grad(ys[0]), 1.0);
+    ag_d::var_t mm = mean(ys);
+    AKS_CHECK_VARIABLE(mm, 10.3333333);
 
-  ag_d::var_t gm = gmean(xs);
-  AKS_CHECK_VARIABLE(gm, 10.0);
+    AKS_CHECK_PRINT(t.nodes_.size(), t.nodes_.size(), 65);
+    AKS_CHECK_PRINT(t.grads_.size(), t.grads_.size(), 15);
 
-  AKS_CHECK_PRINT(t.nodes_.size(), t.nodes_.size(), 68);
-  AKS_CHECK_PRINT(t.grads_.size(), t.grads_.size(), 15);
+    // backward(mm);
+    // AKS_CHECK_VARIABLE(grad(ys[0]), 1.0);
 
-  // backward(gm);
-  // AKS_CHECK_VARIABLE(grad(xs[0]), 1.0);
+    ag_d::var_t gm = gmean(xs);
+    AKS_CHECK_VARIABLE(gm, 10.0);
+
+    AKS_CHECK_PRINT(t.nodes_.size(), t.nodes_.size(), 68);
+    AKS_CHECK_PRINT(t.grads_.size(), t.grads_.size(), 15);
+
+    // backward(gm);
+    // AKS_CHECK_VARIABLE(grad(xs[0]), 1.0);
+  }
 }
+
+void test_26() {
+  std::cout << "\ntest_26" << std::endl;
+
+#ifndef AKS_NO_VCL
+
+  using ag = autograd_traits<vcl::Vec2d>;
+
+  using namespace aks;
+  using namespace vcl;
+  using namespace std;
+  ag::tape_t t;
+  const ag::var_t x = t.new_variable(ag::value_t(std::numbers::pi_v<double_t>) /
+                                     ag::value_t(2.0, 1.0));
+
+  ag::var_t f = (sin(x) ^ ag::value_t(2.0)) + (cos(x) ^ ag::value_t(2.0));
+
+  t.push_state();
+  AKS_CHECK_PRINT(x.value()[0], x.value()[0],
+                  std::numbers::pi_v<double_t> / double_t(2.0));
+  AKS_CHECK_PRINT(x.value()[1], x.value()[1],
+                  std::numbers::pi_v<double_t> / double_t(1.0));
+  AKS_CHECK_PRINT(f.value()[0], f.value()[0], double_t(1.0));
+  AKS_CHECK_PRINT(f.value()[1], f.value()[1], double_t(1.0));
+
+  for (int i = 0; i < 1; ++i) {
+    t.zero_grad();
+    backward(f);
+    f = grad(x);
+    AKS_CHECK_PRINT(f.value()[0], f.value()[0], 0.0);
+    AKS_CHECK_PRINT(f.value()[1], f.value()[1], 0.0);
+  }
+  AKS_CHECK_PRINT(t.nodes_.size(), t.nodes_.size(), 36);
+  AKS_CHECK_PRINT(t.grads_.size(), t.grads_.size(), 8);
+  t.pop_state();
+
+#endif
+}
+
+void test_27() {
+  std::cout << "\ntest_27" << std::endl;
+#ifndef AKS_NO_VCL
+
+  using namespace aks;
+  using ag = autograd_traits<vcl::Vec2d>;
+
+  using namespace aks;
+  using namespace vcl;
+  using namespace std;
+  ag::tape_t t;
+  const ag::var_t x = t.new_variable(ag::value_t(std::numbers::pi_v<double_t>) /
+                                     ag::value_t(2.0));
+
+  ag::var_t f = sin(x);
+
+  t.push_state();
+  vec_t<ag_d::value_t> expected = {0, -1, 0, 1, 0, -1, 0, 1, 0};
+
+  for (int i = 0; i < 9; ++i) {
+    t.zero_grad();
+    backward(f);
+    f = grad(x);
+    AKS_CHECK_PRINT(f.value()[0], f.value()[0], expected[i]);
+    AKS_CHECK_PRINT(f.value()[1], f.value()[1], expected[i]);
+  }
+  AKS_CHECK_PRINT(t.nodes_.size(), t.nodes_.size(), 140178);
+  AKS_CHECK_PRINT(t.grads_.size(), t.grads_.size(), 39214);
+  t.pop_state();
+
+#endif
+}
+
 } // namespace
 
-int main() {
+int main_tests() {
+
+  test_27();
+  test_26();
   test_25();
   test_24_02();
   test_24_01();
@@ -1532,5 +1627,10 @@ int main() {
   std::cout << "\ntotal  : " << TOTAL_TEST_RUN
             << "\npassed : " << TOTAL_TEST_PASS
             << "\nfailed : " << TOTAL_TEST_FAIL << std::endl;
+  return 0;
+}
+
+int main() {
+  main_tests();
   return 0;
 }

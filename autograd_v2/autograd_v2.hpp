@@ -12,9 +12,97 @@
 #include <stack>
 #include <string>
 #include <tuple>
+#include <type_traits>
 #include <unordered_map>
 #include <variant>
 #include <vector>
+
+#ifndef AKS_NO_VCL
+
+#define VCL_NAMESPACE vcl
+
+#include <fog/vectorclass.h>
+#include <fog/vectormath_common.h>
+#include <fog/vectormath_exp.h>
+// #include <fog/vectormath_hyp.h>
+// #include <fog/vectormath_lib.h>
+#include <fog/vectormath_trig.h>
+
+#endif
+
+namespace aks {
+namespace vcl_detail {
+template <typename T> struct is_vcl_vec : std::false_type {};
+
+#ifndef AKS_NO_VCL
+
+template <> struct is_vcl_vec<vcl::Vec2d> : std::true_type {};
+
+template <> struct is_vcl_vec<vcl::Vec4d> : std::true_type {};
+
+template <> struct is_vcl_vec<vcl::Vec8d> : std::true_type {};
+
+template <typename F> vcl::Vec2d vec_for_each(F f, vcl::Vec2d const &x) {
+  return vcl::Vec2d(f(x[0]), f(x[1]));
+}
+
+vcl::Vec2d vec_sin(const vcl::Vec2d &v) { return vcl::sin(v); }
+vcl::Vec2d vec_cos(const vcl::Vec2d &v) { return vcl::cos(v); };
+
+vcl::Vec2d vec_tanh(const vcl::Vec2d &v) {
+  return vec_for_each([](const double x) { return std::tanh(x); }, v);
+}
+vcl::Vec2d vec_exp(const vcl::Vec2d &v) { return vcl::exp(v); }
+vcl::Vec2d vec_log(const vcl::Vec2d &v) { return vcl::log(v); }
+
+vcl::Vec2d vec_relu(const vcl::Vec2d &v) {
+  return vec_for_each([](const double a) { return (a > 0.0) ? a : 0.0; }, v);
+}
+
+vcl::Vec2d vec_sqrt(const vcl::Vec2d &v) { return vcl::sqrt(v); }
+
+vcl::Vec2d vec_pow(const vcl::Vec2d &v, const vcl::Vec2d &t) {
+  return {std::pow(v[0], t[0]), std::pow(v[1], t[1])};
+}
+
+vcl::Vec2d vec_max(const vcl::Vec2d &v, const vcl::Vec2d &t) {
+  return vcl::max(v, t);
+}
+
+vcl::Vec2d vec_min(const vcl::Vec2d &v, const vcl::Vec2d &t) {
+  return vcl::min(v, t);
+}
+
+std::string to_string(const vcl::Vec2d &v) {
+  std::stringstream os;
+  os << std::setprecision(15) << "(" << v[0] << ", " << v[1] << ")";
+  return os.str();
+}
+
+std::ostream &operator<<(std::ostream &os, const vcl::Vec2d &v) {
+  os << std::setprecision(15) << "(" << v[0] << ", " << v[1] << ")";
+  return os;
+}
+
+template <typename R, typename T, typename U>
+auto vcl_select(typename R &&s, T &&l, U &&r) {
+  return vcl::select(std::forward<R>(s), std::forward<T>(l),
+                     std::forward<U>(r));
+}
+
+template <typename T> auto vec_horizontal_or(T &&v) {
+  return vcl::horizontal_or(std::forward<T>(v));
+}
+
+template <typename R> R get_first_as(vcl::Vec2d const &v) { return R(v[0]); }
+
+#endif
+
+template <typename R, typename T> R get_first_as(T const &v) { return R(v); }
+
+} // namespace vcl_detail
+
+} // namespace aks
 
 #if NDEBUG
 #define CHECK_NAN(x)                                                           \
@@ -174,21 +262,47 @@ template <typename real_t> auto const &grad(var_t<real_t> const &n) {
 
 template <typename real_t> struct exp_mix {
   using value_type = real_t;
-  static value_type apply(value_type a) { CHECK_NAN(std::exp(a)); }
+  static value_type apply(value_type a) {
+    if constexpr (::aks::vcl_detail::is_vcl_vec<value_type>::value) {
+      using namespace ::aks::vcl_detail;
+      return vec_exp(a);
+    } else {
+      using namespace std;
+      CHECK_NAN(exp(a));
+    }
+  }
   static back_f<value_type> bf() { return {"exp", backward}; }
   static void backward(tape_t<value_type> *t, node<value_type> *n);
 };
 
 template <typename real_t> struct log_mix {
   using value_type = real_t;
-  static value_type apply(value_type a) { CHECK_NAN(std::log(a)); }
+  static value_type apply(value_type a) {
+
+    if constexpr (::aks::vcl_detail::is_vcl_vec<value_type>::value) {
+      using namespace ::aks::vcl_detail;
+      return vec_log(a);
+    } else {
+      using namespace std;
+      CHECK_NAN(log(a));
+    }
+  }
   static back_f<value_type> bf() { return {"log", backward}; }
   static void backward(tape_t<value_type> *t, node<value_type> *n);
 };
 
 template <typename real_t> struct tanh_mix {
   using value_type = real_t;
-  static value_type apply(value_type a) { return std::tanh(a); }
+  static value_type apply(value_type a) {
+
+    if constexpr (::aks::vcl_detail::is_vcl_vec<value_type>::value) {
+      using namespace ::aks::vcl_detail;
+      return vec_tanh(a);
+    } else {
+      using namespace std;
+      CHECK_NAN(tanh(a));
+    }
+  }
   static back_f<value_type> bf() { return {"tanh", backward}; }
   static void backward(tape_t<value_type> *t, node<value_type> *n);
 };
@@ -202,21 +316,48 @@ template <typename real_t> struct neg_mix {
 
 template <typename real_t> struct sin_mix {
   using value_type = real_t;
-  static value_type apply(value_type a) { CHECK_NAN(std::sin(a)); }
+  static value_type apply(value_type a) {
+    if constexpr (::aks::vcl_detail::is_vcl_vec<value_type>::value) {
+      using namespace ::aks::vcl_detail;
+      return vec_sin(a);
+    } else {
+      using namespace std;
+      CHECK_NAN(sin(a));
+    }
+  }
   static back_f<value_type> bf() { return {"sin", backward}; }
   static void backward(tape_t<value_type> *t, node<value_type> *n);
 };
 
 template <typename real_t> struct cos_mix {
   using value_type = real_t;
-  static value_type apply(value_type a) { CHECK_NAN(std::cos(a)); }
+  static value_type apply(value_type a) {
+
+    if constexpr (::aks::vcl_detail::is_vcl_vec<value_type>::value) {
+      using namespace ::aks::vcl_detail;
+      return vec_cos(a);
+    } else {
+      using namespace std;
+      CHECK_NAN(cos(a));
+    }
+  }
   static back_f<value_type> bf() { return {"cos", backward}; }
   static void backward(tape_t<value_type> *t, node<value_type> *n);
 };
 
 template <typename real_t> struct sqrt_mix {
   using value_type = real_t;
-  static value_type apply(value_type a) { CHECK_NAN(std::sqrt(a)); }
+  static value_type apply(value_type a) {
+
+    if constexpr (::aks::vcl_detail::is_vcl_vec<value_type>::value) {
+      using namespace ::aks::vcl_detail;
+      return vec_sqrt(a);
+    } else {
+      using namespace std;
+      CHECK_NAN(std::sqrt(a));
+    }
+  }
+
   static back_f<value_type> bf() { return {"sqrt", backward}; }
   static void backward(tape_t<value_type> *t, node<value_type> *n);
 };
@@ -224,8 +365,15 @@ template <typename real_t> struct sqrt_mix {
 template <typename real_t> struct relu_mix {
   using value_type = real_t;
   static value_type apply(value_type a) {
-    return (a > value_type(0.0)) ? a : value_type(0.0);
+    if constexpr (::aks::vcl_detail::is_vcl_vec<value_type>::value) {
+      using namespace ::aks::vcl_detail;
+      return vec_relu(a);
+    } else {
+      using namespace std;
+      return (a > value_type(0.0)) ? a : value_type(0.0);
+    }
   }
+
   static back_f<value_type> bf() { return {"relu", backward}; }
   static void backward(tape_t<value_type> *t, node<value_type> *n);
 };
@@ -266,7 +414,15 @@ template <typename real_t> struct div_mix {
 
 template <typename real_t> struct pow_mix {
   using value_type = real_t;
-  static value_type apply(value_type a, value_type b) { return std::pow(a, b); }
+  static value_type apply(value_type a, value_type b) {
+    if constexpr (aks::vcl_detail::is_vcl_vec<value_type>::value) {
+      using namespace ::aks::vcl_detail;
+      return vec_pow(a, b);
+    } else {
+      using namespace std;
+      CHECK_NAN(pow(a, b));
+    }
+  }
   static back_f<value_type> bf() { return {"pow", backward}; }
   static void backward(tape_t<value_type> *t, node<value_type> *n);
 };
@@ -534,12 +690,37 @@ template <typename real_t> var_t<real_t> gsum(vec_t<var_t<real_t>> const &a) {
 }
 
 template <typename real_t> var_t<real_t> mean(vec_t<var_t<real_t>> const &a) {
-  return asum(a) / real_t(a.size());
+  return asum(a) / static_cast<real_t>(static_cast<double>(a.size()));
 }
 
 template <typename real_t> var_t<real_t> gmean(vec_t<var_t<real_t>> const &a) {
-  return gsum(a) / real_t(a.size());
+  return gsum(a) / static_cast<real_t>(static_cast<double>(a.size()));
 }
+
+#ifndef AKS_NO_VCL
+
+var_t<vcl::Vec2d> max(vec_t<var_t<vcl::Vec2d>> const &a) {
+  assert(false);
+  return {};
+  /*
+  var_t<vcl::Vec2d> m = a[0];
+  for (size_t i = 1; i < a.size(); ++i) {
+    m = vcl_detail::vec_max(m, a[i]);
+  }
+  return m;*/
+}
+
+var_t<vcl::Vec2d> min(vec_t<var_t<vcl::Vec2d>> const &a) {
+  assert(false);
+  return {}; /*
+   var_t<vcl::Vec2d> m = a[0];
+   for (size_t i = 1; i < a.size(); ++i) {
+     m = vcl_detail::vec_min(m, a[i]);
+   }
+   return m;*/
+}
+
+#endif
 
 template <typename real_t> var_t<real_t> max(vec_t<var_t<real_t>> const &a) {
   assert(a.size());
@@ -589,7 +770,7 @@ void sqrt_mix<real_t>::backward(tape_t<real_t> *t, node<real_t> *n) {
   var_t<real_t> &fg = grad(f);
   var_t<real_t> l{t, n->ls_.front()};
 
-  auto df = [&]() { return real_t{0.5} *  fg / sqrt(l); };
+  auto df = [&]() { return real_t{0.5} * fg / sqrt(l); };
 
   backward_grad_accumulate(l, df);
 }
@@ -669,7 +850,14 @@ void relu_mix<real_t>::backward(tape_t<real_t> *t, node<real_t> *n) {
   var_t<real_t> &fg = grad(f);
   var_t<real_t> l{t, n->ls_.front()};
 
-  auto df = [&]() { return real_t(l.value() > 0.0) * fg; };
+  auto df = [&]() {
+    if constexpr (aks::vcl_detail::is_vcl_vec<real_t>::value) {
+      using namespace ::aks::vcl_detail;
+      return vcl_select(l.value() > 0.0, real_t{1.0}, real_t{0.0}) * fg;
+    } else {
+      return real_t(l.value() > 0.0) * fg;
+    }
+  };
 
   backward_grad_accumulate(l, df);
 }
@@ -822,6 +1010,16 @@ template <typename real_t> void backward(var_t<real_t> v) {
 } // namespace aks
 
 namespace aks {
+#ifndef AKS_NO_VCL
+
+std::ostream &operator<<(std::ostream &o, var_t<vcl::Vec2d> const &vs) {
+  using namespace vcl_detail;
+  o << std::setprecision(15) << "var_t(" << vs.value() << ";"
+    << (vs.n().backwards_.n_ ? vs.n().backwards_.n_ : "null") << ";"
+    << vs.t().nodes_.size() << ")";
+  return o;
+}
+#endif
 
 template <typename real_t>
 std::ostream &operator<<(std::ostream &o, var_t<real_t> const &vs) {
