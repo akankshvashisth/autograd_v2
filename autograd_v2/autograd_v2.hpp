@@ -121,7 +121,7 @@ AKS_ENABLE_FOR_VCL_VEC_1(T) auto vec_cos(const T &v) { return vcl::cos(v); };
 
 AKS_ENABLE_FOR_VCL_VEC_1(T)
 auto vec_tanh(const T &v) {
-  return vec_for_each([](const double x) { return std::tanh(x); }, v);
+  return vec_for_each([](const auto x) { return std::tanh(x); }, v);
 }
 
 AKS_ENABLE_FOR_VCL_VEC_1(T) auto vec_exp(const T &v) { return vcl::exp(v); }
@@ -130,15 +130,17 @@ AKS_ENABLE_FOR_VCL_VEC_1(T) auto vec_log(const T &v) { return vcl::log(v); }
 
 AKS_ENABLE_FOR_VCL_VEC_1(T)
 auto vec_relu(const T &v) {
-  return vec_for_each([](const double a) { return (a > 0.0) ? a : 0.0; }, v);
+  return vec_for_each([](const auto a) { return (a > 0.0) ? a : 0.0; }, v);
 }
 
 AKS_ENABLE_FOR_VCL_VEC_1(T) auto vec_sqrt(const T &v) { return vcl::sqrt(v); }
 
 AKS_ENABLE_FOR_VCL_VEC_1(T)
 auto vec_pow(const T &v, const T &t) {
-  return vec_for_each(
-      [](const double x, const double y) { return std::pow(x, y); }, v, t);
+  return vcl::pow(v, t);
+  // return vec_for_each([](const auto x, const auto y) { return std::pow(x, y);
+  // },
+  //                   v, t);
 }
 AKS_ENABLE_FOR_VCL_VEC_1(T) auto vec_max(const T &v, const T &t) {
   return vcl::max(v, t);

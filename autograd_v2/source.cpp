@@ -17,7 +17,7 @@ using ag_d = autograd_traits<double_t>;
 using ag_f = autograd_traits<float_t>;
 
 constexpr bool QUIET_PASS = true;
-constexpr bool QUIET_FAIL = true;
+constexpr bool QUIET_FAIL = false;
 constexpr bool ASSERT_FAIL = false;
 static size_t TOTAL_TEST_RUN = 0;
 static size_t TOTAL_TEST_PASS = 0;
@@ -1606,10 +1606,80 @@ void test_27() {
 #endif
 }
 
+void test_28() {
+  std::cout << "\ntest_28" << std::endl;
+#ifndef AKS_NO_VCL
+  using namespace aks;
+  using Vec = vcl::Vec16f;
+
+  using ag = autograd_traits<Vec>;
+
+  auto NR = [](Vec guess, auto f, Vec tolerance = 1e-5f) {
+    ag::tape_t tape;
+
+    auto derivative = [&tape](ag::var_t fx, ag::var_t x) {
+      tape.push_state();
+      tape.zero_grad();
+      backward(fx);
+      ag::var_t dfdx = grad(x);
+      ag::value_t r_dfdx = dfdx.value();
+      tape.pop_state();
+      return r_dfdx;
+    };
+
+    ag::var_t x = tape.new_variable(guess);
+    ag::var_t fx = f(x);
+    // AKS_PRINT(fx.value());
+
+    size_t iter = 0;
+    size_t max_iter = 100;
+
+    using namespace aks::vcl_detail;
+    while (vec_horizontal_or(abs(fx.value()) > tolerance) &&
+           iter++ < max_iter) {
+      x = x - fx / derivative(fx, x);
+      fx = f(x);
+      // AKS_PRINT(fx.value());
+    };
+
+    return x.value();
+  };
+
+  auto test_NR = [&](auto guess, auto f, auto expected) {
+    const Vec result = NR(guess, f);
+    // AKS_PRINT(result);
+    //  AKS_PRINT(f(result));
+
+    for (int i = 0; i < result.size(); ++i) {
+      AKS_CHECK_PRINT("nr", result[i], expected[i]);
+    }
+  };
+
+  const Vec N(1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f, 8.0f, 9.0f, 10.0f,
+              11.0f, 12.0f, 13.0f, 14.0f, 15.0f, 16.0f);
+
+  test_NR(
+      Vec(5.0f), [&](ag::var_t x) { return (x * x) - N; },
+      Vec(1.f, 1.41421353816986f, 1.73205077648163f, 2, 2.2360680103302f,
+          2.44948983192444f, 2.64575123786926f, 2.82842707633972f, 3.f,
+          3.16227769851685f, 3.31662487983704f, 3.46410155296326f,
+          3.60555124282837f, 3.74165749549866f, 3.87298321723938f, 4.f));
+
+  test_NR(
+      Vec(3.0), [&](ag::var_t x) { return (x ^ Vec(3.0f)) - N; },
+      Vec(1.f, 1.25992107391357f, 1.44224953651428f, 1.58740103244781f,
+          1.70997595787048f, 1.81712055206299f, 1.91293120384216f, 2.f,
+          2.0800838470459f, 2.15443468093872f, 2.22398018836975f,
+          2.28942847251892f, 2.35133457183838f, 2.41014218330383f,
+          2.46621203422546f, 2.51984214782715f));
+
+#endif
+}
+
 } // namespace
 
 int main_tests() {
-
+  test_28();
   test_27();
   test_26();
   test_25();
