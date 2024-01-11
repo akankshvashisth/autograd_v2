@@ -17,7 +17,7 @@ using ag_d = autograd_traits<double_t>;
 using ag_f = autograd_traits<float_t>;
 
 constexpr bool QUIET_PASS = true;
-constexpr bool QUIET_FAIL = false;
+constexpr bool QUIET_FAIL = true;
 constexpr bool ASSERT_FAIL = false;
 static size_t TOTAL_TEST_RUN = 0;
 static size_t TOTAL_TEST_PASS = 0;
@@ -1560,9 +1560,10 @@ void test_27() {
   std::cout << "\ntest_27" << std::endl;
 #ifndef AKS_NO_VCL
 
-  auto test_with = [](auto X) {
+  auto test_with = [](auto X, auto Y) {
     using namespace aks;
     using r_t = decltype(X);
+    using f_t = decltype(Y);
     using ag = autograd_traits<r_t>;
     using tape_type = typename ag::tape_t;
     using var_type = typename ag::var_t;
@@ -1572,8 +1573,8 @@ void test_27() {
     using namespace vcl;
     using namespace std;
     tape_type t;
-    const var_type x = t.new_variable(value_type(std::numbers::pi_v<double_t>) /
-                                      value_type(2.0));
+    const var_type x =
+        t.new_variable(value_type(std::numbers::pi_v<f_t>) / value_type(2.0));
 
     var_type f = sin(x);
 
@@ -1595,9 +1596,12 @@ void test_27() {
     t.pop_state();
   };
 
-  test_with(vcl::Vec2d());
-  test_with(vcl::Vec4d());
-  test_with(vcl::Vec8d());
+  test_with(vcl::Vec2d(), double_t());
+  test_with(vcl::Vec4d(), double_t());
+  test_with(vcl::Vec8d(), double_t());
+  test_with(vcl::Vec4f(), float_t());
+  test_with(vcl::Vec8f(), float_t());
+  test_with(vcl::Vec16f(), float_t());
 
 #endif
 }
