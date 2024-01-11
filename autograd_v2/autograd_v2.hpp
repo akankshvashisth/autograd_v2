@@ -51,6 +51,10 @@ template <> struct is_vcl_vec<vcl::Vec8f> : std::true_type {};
 
 template <> struct is_vcl_vec<vcl::Vec16f> : std::true_type {};
 
+template <> struct is_vcl_vec<vcl::Vec4fb> : std::true_type {};
+template <> struct is_vcl_vec<vcl::Vec8fb> : std::true_type {};
+template <> struct is_vcl_vec<vcl::Vec16fb> : std::true_type {};
+
 template <typename F> vcl::Vec2d vec_for_each(F f, vcl::Vec2d const &x) {
   return vcl::Vec2d(f(x[0]), f(x[1]));
 }
@@ -169,6 +173,27 @@ AKS_ENABLE_FOR_VCL_VEC_1(T) auto vec_min(const T &v, const T &t) {
 //     << v[7] << ")";
 //  return os.str();
 //}
+
+std::ostream &operator<<(std::ostream &os, const vcl::Vec4fb &v) {
+  os << std::setprecision(15) << "(" << v[0] << ", " << v[1] << ", " << v[2]
+     << ", " << v[3] << ")";
+  return os;
+}
+
+std::ostream &operator<<(std::ostream &os, const vcl::Vec8fb &v) {
+  os << std::setprecision(15) << "(" << v[0] << ", " << v[1] << ", " << v[2]
+     << ", " << v[3] << ", " << v[4] << ", " << v[5] << ", " << v[6] << ", "
+     << v[7] << ")";
+  return os;
+}
+
+std::ostream &operator<<(std::ostream &os, const vcl::Vec16fb &v) {
+  os << std::setprecision(15) << "(" << v[0] << ", " << v[1] << ", " << v[2]
+     << ", " << v[3] << ", " << v[4] << ", " << v[5] << ", " << v[6] << ", "
+     << v[7] << ", " << v[8] << ", " << v[9] << ", " << v[10] << ", " << v[11]
+     << ", " << v[12] << ", " << v[13] << ", " << v[14] << ", " << v[15] << ")";
+  return os;
+}
 
 std::ostream &operator<<(std::ostream &os, const vcl::Vec4f &v) {
   os << std::setprecision(15) << "(" << v[0] << ", " << v[1] << ", " << v[2]
@@ -305,6 +330,8 @@ template <typename real_t> struct var_t {
   var_t &operator/=(var_t const &r);
   var_t operator-() const;
 
+  void update_in_place(value_type v);
+
   // var_t& operator/=(var_t const& r);
 
   bool is_alive() const { return t_ != nullptr && n_ != nullptr; }
@@ -312,7 +339,7 @@ template <typename real_t> struct var_t {
 private:
   mutable tape_type *t_ = nullptr;
   node_type *n_ = nullptr;
-};
+}; // namespace aks
 
 template <typename real_t> struct back_f {
   using value_type = real_t;
@@ -770,6 +797,10 @@ template <typename real_t> auto operator^(real_t a, var_t<real_t> b) {
 template <typename real_t> var_t<real_t>::var_t(real_t r, tape_t<real_t> *t) {
   t_ = t;
   n_ = t_->new_variable(r).np();
+}
+
+template <typename real_t> void var_t<real_t>::update_in_place(real_t v) {
+  n().v_ = v;
 }
 
 template <typename real_t> real_t var_t<real_t>::value() const {

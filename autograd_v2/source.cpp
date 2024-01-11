@@ -17,7 +17,7 @@ using ag_d = autograd_traits<double_t>;
 using ag_f = autograd_traits<float_t>;
 
 constexpr bool QUIET_PASS = true;
-constexpr bool QUIET_FAIL = false;
+constexpr bool QUIET_FAIL = true;
 constexpr bool ASSERT_FAIL = false;
 static size_t TOTAL_TEST_RUN = 0;
 static size_t TOTAL_TEST_PASS = 0;
@@ -1609,46 +1609,65 @@ void test_27() {
 void test_28() {
   std::cout << "\ntest_28" << std::endl;
 #ifndef AKS_NO_VCL
+  using namespace vcl;
   using namespace aks;
+  using namespace aks::vcl_detail;
   using Vec = vcl::Vec16f;
+  using Vecb = vcl::Vec16fb;
 
   using ag = autograd_traits<Vec>;
 
-  auto NR = [](Vec guess, auto f, Vec tolerance = 1e-5f) {
+  auto NR = [](Vec guess, auto f, auto expected_tape_sizes,
+               Vec tolerance = 1e-6f) {
     ag::tape_t tape;
 
-    auto derivative = [&tape](ag::var_t fx, ag::var_t x) {
+    auto derivative = [&](ag::var_t fx, ag::var_t x) {
       tape.push_state();
       tape.zero_grad();
       backward(fx);
       ag::var_t dfdx = grad(x);
       ag::value_t r_dfdx = dfdx.value();
+
+      AKS_CHECK_PRINT(tape.nodes_.size(), tape.nodes_.size(),
+                      expected_tape_sizes[2]);
+
       tape.pop_state();
       return r_dfdx;
     };
 
     ag::var_t x = tape.new_variable(guess);
-    ag::var_t fx = f(x);
-    // AKS_PRINT(fx.value());
 
     size_t iter = 0;
     size_t max_iter = 100;
 
-    using namespace aks::vcl_detail;
-    while (vec_horizontal_or(abs(fx.value()) > tolerance) &&
-           iter++ < max_iter) {
-      x = x - fx / derivative(fx, x);
-      fx = f(x);
-      // AKS_PRINT(fx.value());
+    Vecb not_solved(true);
+
+    while (vec_horizontal_or(not_solved) && iter++ < max_iter) {
+      tape.push_state();
+      ag::var_t fx = f(x);
+
+      not_solved = abs(fx.value()) > tolerance;
+
+      ag::var_t y = x - fx / derivative(fx, x);
+
+      // only update the ones that need solving
+      Vec new_x = vcl::select(not_solved, y.value(), x.value());
+
+      x.update_in_place(new_x);
+
+      AKS_CHECK_PRINT(tape.nodes_.size(), tape.nodes_.size(),
+                      expected_tape_sizes[1]);
+      tape.pop_state();
+      AKS_CHECK_PRINT(tape.nodes_.size(), tape.nodes_.size(),
+                      expected_tape_sizes[0]);
     };
 
     return x.value();
   };
 
-  auto test_NR = [&](auto guess, auto f, auto expected) {
-    const Vec result = NR(guess, f);
-    // AKS_PRINT(result);
-    //  AKS_PRINT(f(result));
+  auto test_NR = [&](auto guess, auto f, auto expected,
+                     auto expected_tape_sizes) {
+    const Vec result = NR(guess, f, expected_tape_sizes);
 
     for (int i = 0; i < result.size(); ++i) {
       AKS_CHECK_PRINT("nr", result[i], expected[i]);
@@ -1663,7 +1682,8 @@ void test_28() {
       Vec(1.f, 1.41421353816986f, 1.73205077648163f, 2, 2.2360680103302f,
           2.44948983192444f, 2.64575123786926f, 2.82842707633972f, 3.f,
           3.16227769851685f, 3.31662487983704f, 3.46410155296326f,
-          3.60555124282837f, 3.74165749549866f, 3.87298321723938f, 4.f));
+          3.60555124282837f, 3.74165749549866f, 3.87298321723938f, 4.f),
+      vec_t<size_t>{1, 7, 12});
 
   test_NR(
       Vec(3.0), [&](ag::var_t x) { return (x ^ Vec(3.0f)) - N; },
@@ -1671,7 +1691,8 @@ void test_28() {
           1.70997595787048f, 1.81712055206299f, 1.91293120384216f, 2.f,
           2.0800838470459f, 2.15443468093872f, 2.22398018836975f,
           2.28942847251892f, 2.35133457183838f, 2.41014218330383f,
-          2.46621203422546f, 2.51984214782715f));
+          2.46621203422546f, 2.51984214782715f),
+      vec_t<size_t>{1, 8, 18});
 
 #endif
 }
