@@ -14,6 +14,7 @@ template <typename value_type> struct autograd_traits {
 };
 
 using ag_d = autograd_traits<double_t>;
+// using ag_d = autograd_traits<vcl::Vec2d>;
 using ag_f = autograd_traits<float_t>;
 
 constexpr bool QUIET_PASS = true;
@@ -1697,9 +1698,90 @@ void test_28() {
 #endif
 }
 
+void test_29() {
+  std::cout << "\ntest_29" << std::endl;
+
+  using namespace aks;
+
+  ag_d::tape_t t;
+
+  ag_d::var_t x = t.new_variable(2);
+  ag_d::var_t y = t.new_variable(3);
+  ag_d::var_t z = x + y;
+
+  ag_d::var_t f = (x ^ y) * z;
+
+  backward(f);
+
+  ag_d::var_t dfdx = grad(x);
+  ag_d::var_t dfdy = grad(y);
+  ag_d::var_t dfdz = grad(z, false);
+
+  AKS_CHECK_VARIABLE(z, 5);
+  AKS_CHECK_VARIABLE(f, 40);
+  AKS_CHECK_VARIABLE(dfdx, 68);
+  AKS_CHECK_VARIABLE(dfdy, 35.7258872223978);
+  AKS_CHECK_VARIABLE(dfdz, 8);
+  AKS_CHECK_VALUE(t.nodes_.size(), 18);
+
+  x.update_in_place(3);
+
+  forward(&t);
+
+  AKS_CHECK_VARIABLE(z, 6);
+  AKS_CHECK_VARIABLE(f, 162);
+  AKS_CHECK_VARIABLE(dfdx, 189);
+  AKS_CHECK_VARIABLE(dfdy, 204.975190764234);
+  AKS_CHECK_VARIABLE(dfdz, 27);
+  AKS_CHECK_VALUE(t.nodes_.size(), 18);
+
+  y.update_in_place(4);
+
+  forward_from(&t, &y);
+
+  AKS_CHECK_VARIABLE(z, 7);
+  AKS_CHECK_VARIABLE(f, 567);
+  AKS_CHECK_VARIABLE(dfdx, 837);
+  AKS_CHECK_VARIABLE(dfdy, 703.9131676748182834);
+  AKS_CHECK_VARIABLE(dfdz, 81);
+  AKS_CHECK_VALUE(t.nodes_.size(), 18);
+
+  y.update_in_place(5);
+  // z.update_in_place(5); //this will fail, can't update a non-leaf node
+  // "safely"
+
+  forward_to(&t, &z);
+
+  AKS_CHECK_VARIABLE(z, 8);
+  AKS_CHECK_VARIABLE(f, 567);
+  AKS_CHECK_VARIABLE(dfdx, 837);
+  AKS_CHECK_VARIABLE(dfdy, 703.9131676748182834);
+  AKS_CHECK_VARIABLE(dfdz, 81);
+  AKS_CHECK_VALUE(t.nodes_.size(), 18);
+
+  forward_from(&t, &z, false /*start from a non-leaf*/);
+
+  AKS_CHECK_VARIABLE(z, 8);
+  AKS_CHECK_VARIABLE(f, 1944);
+  AKS_CHECK_VARIABLE(dfdx, 3483);
+  AKS_CHECK_VARIABLE(dfdy, 2378.70228917080522);
+  AKS_CHECK_VARIABLE(dfdz, 243);
+  AKS_CHECK_VALUE(t.nodes_.size(), 18);
+
+  forward(&t);
+
+  AKS_CHECK_VARIABLE(z, 8);
+  AKS_CHECK_VARIABLE(f, 1944);
+  AKS_CHECK_VARIABLE(dfdx, 3483);
+  AKS_CHECK_VARIABLE(dfdy, 2378.70228917080522);
+  AKS_CHECK_VARIABLE(dfdz, 243);
+  AKS_CHECK_VALUE(t.nodes_.size(), 18);
+}
+
 } // namespace
 
 int main_tests() {
+  test_29();
   test_28();
   test_27();
   test_26();

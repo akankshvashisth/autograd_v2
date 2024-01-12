@@ -330,7 +330,7 @@ template <typename real_t> struct var_t {
   var_t &operator/=(var_t const &r);
   var_t operator-() const;
 
-  void update_in_place(value_type v);
+  void update_in_place(value_type v, bool safe = true);
 
   // var_t& operator/=(var_t const& r);
 
@@ -340,6 +340,13 @@ private:
   mutable tape_type *t_ = nullptr;
   node_type *n_ = nullptr;
 }; // namespace aks
+
+template <typename real_t> struct fwd_f {
+  using value_type = real_t;
+  typedef void (*fwd_f_t)(node<value_type> *);
+  const char *n_ = nullptr;
+  fwd_f_t f_ = nullptr;
+};
 
 template <typename real_t> struct back_f {
   using value_type = real_t;
@@ -352,6 +359,7 @@ template <typename real_t> struct node {
   using value_type = real_t;
   value_type v_ = value_type{};
   back_f<value_type> backwards_;
+  fwd_f<value_type> forwards_;
   vec_t<node<value_type> *> ls_, rs_;
   idx_t idx_ = sntnl_idx;
   bool is_leaf() const { return ls_.empty() && rs_.empty(); }
@@ -404,12 +412,30 @@ template <typename real_t> struct tape_t {
   stack_t<std::tuple<idx_t, idx_t>> saved_state_;
 };
 
-template <typename real_t> auto &grad(var_t<real_t> &n) {
+template <typename real_t> auto &grad_unchecked(var_t<real_t> &n) {
   return n.t().grads_[n.n().idx_];
 }
 
-template <typename real_t> auto const &grad(var_t<real_t> const &n) {
+template <typename real_t> auto const &grad_unchecked(var_t<real_t> const &n) {
   return n.t().grads_[n.n().idx_];
+}
+
+template <typename real_t> auto &grad(var_t<real_t> &n, bool safe = true) {
+  if (safe) {
+    // in safe mode - you can only grad at leaf node
+    assert(n.is_alive() && n.n().is_leaf());
+  }
+  return grad_unchecked(n);
+}
+
+template <typename real_t>
+auto const &grad(var_t<real_t> const &n, bool safe = true) {
+  if (safe) {
+    // in safe mode - you can only grad at leaf node
+    assert(n.is_alive() && n.n().is_leaf());
+  }
+
+  return grad_unchecked(n);
 }
 
 #pragma endregion
@@ -583,38 +609,6 @@ template <typename real_t> struct pow_mix {
   static void backward(tape_t<value_type> *t, node<value_type> *n);
 };
 
-template <typename mix> struct u_op_mix : mix {
-  using mix::apply;
-  using mix::bf;
-  using value_type = mix::value_type;
-  static value_type fwd(value_type const &a) { return apply(a); }
-  static var_t<value_type> fwd(var_t<value_type> const &a) {
-    node<value_type> *new_node = a.t().new_node();
-    new_node->v_ = fwd(a.n().v_);
-    new_node->backwards_ = bf();
-    new_node->ls_.push_back(a.np());
-    return var_t{&a.t(), new_node};
-  }
-};
-
-template <typename mix> struct op_mix : mix {
-  using mix::apply;
-  using mix::bf;
-  using value_type = mix::value_type;
-  static value_type fwd(value_type const &a, value_type const &b) {
-    return apply(a, b);
-  }
-  static var_t<value_type> fwd(var_t<value_type> const &a,
-                               var_t<value_type> const &b) {
-    node<value_type> *new_node = a.t().new_node();
-    new_node->v_ = fwd(a.n().v_, b.n().v_);
-    new_node->backwards_ = bf();
-    new_node->ls_.push_back(a.np());
-    new_node->rs_.push_back(b.np());
-    return var_t{&a.t(), new_node};
-  }
-};
-
 template <typename real_t> struct dot_mix {
   using value_type = real_t;
   static value_type start() { return 0.0; }
@@ -655,11 +649,57 @@ template <typename real_t> struct gsum_mix {
 //    // static void backward(tape_t* t, node* n);
 //  };
 
+template <typename mix> struct u_op_mix : mix {
+  using mix::apply;
+  using mix::bf;
+  using value_type = mix::value_type;
+  static value_type apply_op(value_type const &a) { return apply(a); }
+  static void forward(node<value_type> *n) {
+    n->v_ = apply_op(n->ls_.front()->v_);
+  }
+  static var_t<value_type> fwd_onto_tape(var_t<value_type> const &a) {
+    node<value_type> *new_node = a.t().new_node();
+    new_node->backwards_ = bf();
+    new_node->forwards_ = {bf().n_, forward};
+    new_node->ls_.push_back(a.np());
+    new_node->v_ = apply_op(a.n().v_);
+    return var_t{&a.t(), new_node};
+  }
+};
+
+template <typename mix> struct op_mix : mix {
+  using mix::apply;
+  using mix::bf;
+  using value_type = mix::value_type;
+  static value_type apply_op(value_type const &a, value_type const &b) {
+    return apply(a, b);
+  }
+  static void forward(node<value_type> *n) {
+    n->v_ = apply_op(n->ls_.front()->v_, n->rs_.front()->v_);
+  }
+  static var_t<value_type> fwd_onto_tape(var_t<value_type> const &a,
+                                         var_t<value_type> const &b) {
+    node<value_type> *new_node = a.t().new_node();
+    new_node->backwards_ = bf();
+    new_node->forwards_ = {bf().n_, forward};
+    new_node->ls_.push_back(a.np());
+    new_node->rs_.push_back(b.np());
+    new_node->v_ = apply_op(a.n().v_, b.n().v_);
+    return var_t{&a.t(), new_node};
+  }
+};
+
 template <typename mix> struct v_u_to_1_op_mix : mix {
   using mix::apply;
   using mix::bf;
   using mix::start;
   using value_type = mix::value_type;
+  static void forward(node<value_type> *n) {
+    n->v_ = start();
+    for (int i = 0; i < n->ls_.size(); i++) {
+      apply(n->v_, n->ls_[i]->v_);
+    }
+  }
   static value_type fwd_impl(vec_t<var_t<value_type>> const &a,
                              vec_t<node<value_type> *> &ls) {
     value_type ret = start();
@@ -669,11 +709,12 @@ template <typename mix> struct v_u_to_1_op_mix : mix {
     }
     return ret;
   }
-  static var_t<value_type> fwd(vec_t<var_t<value_type>> const &a) {
+  static var_t<value_type> fwd_onto_tape(vec_t<var_t<value_type>> const &a) {
     assert(a.size());
     node<value_type> *new_node = a.front().t().new_node();
     new_node->v_ = fwd_impl(a, new_node->ls_);
     new_node->backwards_ = bf();
+    new_node->forwards_ = {bf().n_, forward};
     return var_t{&a.front().t(), new_node};
   }
 };
@@ -683,11 +724,19 @@ template <typename mix> struct v_b_to_1_op_mix : mix {
   using mix::bf;
   using mix::start;
   using value_type = mix::value_type;
+  static void forward(node<value_type> *n) {
+    n->v_ = start();
+    for (int i = 0; i < n->ls_.size(); i++) {
+      apply(n->v_, n->ls_[i]->v_, n->rs_[i]->v_);
+    }
+  }
+
   static value_type fwd_impl(vec_t<var_t<value_type>> const &a,
                              vec_t<var_t<value_type>> const &b,
                              vec_t<node<value_type> *> &ls,
                              vec_t<node<value_type> *> &rs) {
     value_type ret = start();
+    assert(a.size() == b.size());
     for (int i = 0; i < a.size(); i++) {
       apply(ret, a[i].n().v_, b[i].n().v_);
       ls.push_back(a[i].np());
@@ -695,13 +744,15 @@ template <typename mix> struct v_b_to_1_op_mix : mix {
     }
     return ret;
   }
-  static var_t<value_type> fwd(vec_t<var_t<value_type>> const &a,
-                               vec_t<var_t<value_type>> const &b) {
+
+  static var_t<value_type> fwd_onto_tape(vec_t<var_t<value_type>> const &a,
+                                         vec_t<var_t<value_type>> const &b) {
     assert(a.size());
     assert(a.size() == b.size());
     node<value_type> *new_node = a.front().t().new_node();
     new_node->v_ = fwd_impl(a, b, new_node->ls_, new_node->rs_);
     new_node->backwards_ = bf();
+    new_node->forwards_ = {bf().n_, forward};
     return var_t{&a.front().t(), new_node};
   }
 };
@@ -713,34 +764,34 @@ template <typename mix> struct v_b_to_1_op_mix : mix {
 // auto identity(var_t<real_t> a) { return u_op_mix<id_mix>::fwd(a); }
 
 template <typename real_t> auto relu(var_t<real_t> a) {
-  return u_op_mix<relu_mix<real_t>>::fwd(a);
+  return u_op_mix<relu_mix<real_t>>::fwd_onto_tape(a);
 }
 template <typename real_t> auto sqrt(var_t<real_t> a) {
-  return u_op_mix<sqrt_mix<real_t>>::fwd(a);
+  return u_op_mix<sqrt_mix<real_t>>::fwd_onto_tape(a);
 }
 
 template <typename real_t> auto sin(var_t<real_t> a) {
-  return u_op_mix<sin_mix<real_t>>::fwd(a);
+  return u_op_mix<sin_mix<real_t>>::fwd_onto_tape(a);
 }
 template <typename real_t> auto cos(var_t<real_t> a) {
-  return u_op_mix<cos_mix<real_t>>::fwd(a);
+  return u_op_mix<cos_mix<real_t>>::fwd_onto_tape(a);
 }
 template <typename real_t> auto tanh(var_t<real_t> a) {
-  return u_op_mix<tanh_mix<real_t>>::fwd(a);
+  return u_op_mix<tanh_mix<real_t>>::fwd_onto_tape(a);
 }
 template <typename real_t> auto neg(var_t<real_t> a) {
-  return u_op_mix<neg_mix<real_t>>::fwd(a);
+  return u_op_mix<neg_mix<real_t>>::fwd_onto_tape(a);
 }
 
 template <typename real_t> auto exp(var_t<real_t> a) {
-  return u_op_mix<exp_mix<real_t>>::fwd(a);
+  return u_op_mix<exp_mix<real_t>>::fwd_onto_tape(a);
 }
 template <typename real_t> auto log(var_t<real_t> a) {
-  return u_op_mix<log_mix<real_t>>::fwd(a);
+  return u_op_mix<log_mix<real_t>>::fwd_onto_tape(a);
 }
 
 template <typename real_t> auto pow(var_t<real_t> a, var_t<real_t> b) {
-  return op_mix<pow_mix<real_t>>::fwd(a, b);
+  return op_mix<pow_mix<real_t>>::fwd_onto_tape(a, b);
 }
 template <typename real_t> auto pow(var_t<real_t> a, real_t b) {
   return pow(a, var_t<real_t>{b, &a.t()});
@@ -749,16 +800,16 @@ template <typename real_t> auto pow(real_t a, var_t<real_t> b) {
   return pow(var_t<real_t>{a, &b.t()}, b);
 }
 template <typename real_t> auto operator+(var_t<real_t> a, var_t<real_t> b) {
-  return op_mix<add_mix<real_t>>::fwd(a, b);
+  return op_mix<add_mix<real_t>>::fwd_onto_tape(a, b);
 }
 template <typename real_t> auto operator-(var_t<real_t> a, var_t<real_t> b) {
-  return op_mix<sub_mix<real_t>>::fwd(a, b);
+  return op_mix<sub_mix<real_t>>::fwd_onto_tape(a, b);
 }
 template <typename real_t> auto operator*(var_t<real_t> a, var_t<real_t> b) {
-  return op_mix<mul_mix<real_t>>::fwd(a, b);
+  return op_mix<mul_mix<real_t>>::fwd_onto_tape(a, b);
 }
 template <typename real_t> auto operator/(var_t<real_t> a, var_t<real_t> b) {
-  return op_mix<div_mix<real_t>>::fwd(a, b);
+  return op_mix<div_mix<real_t>>::fwd_onto_tape(a, b);
 }
 template <typename real_t> auto operator^(var_t<real_t> a, var_t<real_t> b) {
   return pow(a, b);
@@ -799,7 +850,13 @@ template <typename real_t> var_t<real_t>::var_t(real_t r, tape_t<real_t> *t) {
   n_ = t_->new_variable(r).np();
 }
 
-template <typename real_t> void var_t<real_t>::update_in_place(real_t v) {
+template <typename real_t>
+void var_t<real_t>::update_in_place(real_t v, bool safe) {
+  if (safe) {
+    // can only update a leaf node
+    // not sure why a non-safe would ever be handy... but oh well
+    assert(n().is_leaf());
+  }
   n().v_ = v;
 }
 
@@ -838,15 +895,15 @@ template <typename real_t> var_t<real_t> var_t<real_t>::operator-() const {
 template <typename real_t>
 var_t<real_t> dot(vec_t<var_t<real_t>> const &a,
                   vec_t<var_t<real_t>> const &b) {
-  return v_b_to_1_op_mix<dot_mix<real_t>>::fwd(a, b);
+  return v_b_to_1_op_mix<dot_mix<real_t>>::fwd_onto_tape(a, b);
 }
 
 template <typename real_t> var_t<real_t> asum(vec_t<var_t<real_t>> const &a) {
-  return v_u_to_1_op_mix<asum_mix<real_t>>::fwd(a);
+  return v_u_to_1_op_mix<asum_mix<real_t>>::fwd_onto_tape(a);
 }
 
 template <typename real_t> var_t<real_t> gsum(vec_t<var_t<real_t>> const &a) {
-  return v_u_to_1_op_mix<gsum_mix<real_t>>::fwd(a);
+  return v_u_to_1_op_mix<gsum_mix<real_t>>::fwd_onto_tape(a);
 }
 
 template <typename real_t> var_t<real_t> mean(vec_t<var_t<real_t>> const &a) {
@@ -910,28 +967,71 @@ min(vec_t<var_t<real_t>> const &a) {
 
 #pragma endregion
 
+template <typename real_t>
+void forward_impl(tape_t<real_t> *t, var_t<real_t> const *from,
+                  var_t<real_t> const *upto, bool safe) {
+  if (safe && from) {
+    // in safe mode - you can only start from a leaf node
+    // else if you are doing partial runs, you can start anywhere
+    assert(from->n().is_leaf());
+  }
+
+  // we do not want to recalc from, as upto will do that
+  size_t i = from ? from->np()->idx_ + 1 : 0;
+  for (; i < t->nodes_.size(); ++i) {
+    if (upto && upto->np()->idx_ < i) {
+      return;
+    }
+    node<real_t> &n = t->nodes_[i];
+    if (n.forwards_.f_) {
+      n.forwards_.f_(&n);
+    }
+  }
+}
+
+template <typename real_t> void forward(tape_t<real_t> *t) {
+  forward_impl<real_t>(t, nullptr, nullptr, true);
+}
+
+template <typename real_t>
+void forward_from(tape_t<real_t> *t, var_t<real_t> const *from,
+                  bool safe = true) {
+  forward_impl<real_t>(t, from, nullptr, safe);
+}
+
+template <typename real_t>
+void forward_to(tape_t<real_t> *t, var_t<real_t> const *upto) {
+  forward_impl<real_t>(t, nullptr, upto, true);
+}
+
+template <typename real_t>
+void forward_from_to(tape_t<real_t> *t, var_t<real_t> const *from,
+                     var_t<real_t> const *upto, bool safe = true) {
+  forward_impl<real_t>(t, from, upto, safe);
+}
+
 #pragma region backward
 
 template <typename real_t, typename F>
 void backward_grad_accumulate(var_t<real_t> &x, F df) {
-  if (grad(x).is_alive()) {
-    grad(x) += df();
+  if (grad_unchecked(x).is_alive()) {
+    grad_unchecked(x) += df();
   } else {
-    grad(x) = df();
+    grad_unchecked(x) = df();
   }
 }
 
 template <typename real_t>
 void backward_set_grad_if_not_alive(var_t<real_t> &x) {
-  if (!grad(x).is_alive()) {
-    grad(x) = x.t().new_variable(0.0);
+  if (!grad_unchecked(x).is_alive()) {
+    grad_unchecked(x) = x.t().new_variable(0.0);
   }
 }
 
 template <typename real_t>
 void sqrt_mix<real_t>::backward(tape_t<real_t> *t, node<real_t> *n) {
   var_t<real_t> f{t, n};
-  var_t<real_t> &fg = grad(f);
+  var_t<real_t> &fg = grad_unchecked(f);
   var_t<real_t> l{t, n->ls_.front()};
 
   auto df = [&]() { return real_t{0.5} * fg / sqrt(l); };
@@ -942,7 +1042,7 @@ void sqrt_mix<real_t>::backward(tape_t<real_t> *t, node<real_t> *n) {
 template <typename real_t>
 void exp_mix<real_t>::backward(tape_t<real_t> *t, node<real_t> *n) {
   var_t<real_t> f{t, n};
-  var_t<real_t> &fg = grad(f);
+  var_t<real_t> &fg = grad_unchecked(f);
   var_t<real_t> l{t, n->ls_.front()};
 
   auto df = [&]() { return f * fg; };
@@ -953,7 +1053,7 @@ void exp_mix<real_t>::backward(tape_t<real_t> *t, node<real_t> *n) {
 template <typename real_t>
 void log_mix<real_t>::backward(tape_t<real_t> *t, node<real_t> *n) {
   var_t<real_t> f{t, n};
-  var_t<real_t> &fg = grad(f);
+  var_t<real_t> &fg = grad_unchecked(f);
   var_t<real_t> l{t, n->ls_.front()};
 
   auto df = [&]() { return fg / l; };
@@ -964,7 +1064,7 @@ void log_mix<real_t>::backward(tape_t<real_t> *t, node<real_t> *n) {
 template <typename real_t>
 void neg_mix<real_t>::backward(tape_t<real_t> *t, node<real_t> *n) {
   var_t<real_t> f{t, n};
-  var_t<real_t> &fg = grad(f);
+  var_t<real_t> &fg = grad_unchecked(f);
   var_t<real_t> l{t, n->ls_.front()};
 
   auto df = [&]() { return -fg; };
@@ -976,7 +1076,7 @@ template <typename real_t>
 void sin_mix<real_t>::backward(tape_t<real_t> *t, node<real_t> *n) {
 
   var_t<real_t> f{t, n};
-  var_t<real_t> &fg = grad(f);
+  var_t<real_t> &fg = grad_unchecked(f);
   var_t<real_t> l{t, n->ls_.front()};
 
   auto df = [&]() { return cos(l) * fg; };
@@ -987,7 +1087,7 @@ void sin_mix<real_t>::backward(tape_t<real_t> *t, node<real_t> *n) {
 template <typename real_t>
 void cos_mix<real_t>::backward(tape_t<real_t> *t, node<real_t> *n) {
   var_t<real_t> f{t, n};
-  var_t<real_t> &fg = grad(f);
+  var_t<real_t> &fg = grad_unchecked(f);
   var_t<real_t> l{t, n->ls_.front()};
 
   auto df = [&]() { return -sin(l) * fg; };
@@ -999,7 +1099,7 @@ template <typename real_t>
 void tanh_mix<real_t>::backward(tape_t<real_t> *t, node<real_t> *n) {
 
   var_t<real_t> f{t, n};
-  var_t<real_t> &fg = grad(f);
+  var_t<real_t> &fg = grad_unchecked(f);
   var_t<real_t> l{t, n->ls_.front()};
 
   auto df = [&]() { return (real_t{1.0} - (f ^ real_t{2.0})) * fg; };
@@ -1011,7 +1111,7 @@ template <typename real_t>
 void relu_mix<real_t>::backward(tape_t<real_t> *t, node<real_t> *n) {
 
   var_t<real_t> f{t, n};
-  var_t<real_t> &fg = grad(f);
+  var_t<real_t> &fg = grad_unchecked(f);
   var_t<real_t> l{t, n->ls_.front()};
 
   auto df = [&]() {
@@ -1029,22 +1129,22 @@ void relu_mix<real_t>::backward(tape_t<real_t> *t, node<real_t> *n) {
 // template<typename real_t> void id_mix<real_t>::backward(tape_t<real_t>*t,
 // node<real_t>*n) {
 //   var_t<real_t> f{t, n};
-//   var_t<real_t> &fg = grad(f);
+//   var_t<real_t> &fg = grad_unchecked(f);
 //   var_t<real_t> l{t, n->ls_.front()};
 //
 //   var_t<real_t> one = t->new_variable(1.0);
 //
-//   if (!grad(l).is_alive()) {
-//     grad(l) = var_t(0.0, t);
+//   if (!grad_unchecked(l).is_alive()) {
+//     grad_unchecked(l) = var_t(0.0, t);
 //   }
 //
-//   grad(l) += grad(l) + fg;
+//   grad_unchecked(l) += grad_unchecked(l) + fg;
 // }
 
 template <typename real_t>
 void dot_mix<real_t>::backward(tape_t<real_t> *t, node<real_t> *n) {
   var_t<real_t> f{t, n};
-  var_t<real_t> &fg = grad(f);
+  var_t<real_t> &fg = grad_unchecked(f);
 
   for (size_t i = 0; i < n->rs_.size(); ++i) {
     var_t<real_t> l{t, n->ls_[i]};
@@ -1061,47 +1161,47 @@ void dot_mix<real_t>::backward(tape_t<real_t> *t, node<real_t> *n) {
 template <typename real_t>
 void asum_mix<real_t>::backward(tape_t<real_t> *t, node<real_t> *n) {
   var_t<real_t> f{t, n};
-  var_t<real_t> &fg = grad(f);
+  var_t<real_t> &fg = grad_unchecked(f);
 
   for (auto &ls : n->ls_) {
     var_t<real_t> l{t, ls};
     backward_set_grad_if_not_alive(l);
-    grad(l) += fg;
+    grad_unchecked(l) += fg;
   }
 }
 
 template <typename real_t>
 void add_mix<real_t>::backward(tape_t<real_t> *t, node<real_t> *n) {
   var_t<real_t> f{t, n};
-  var_t<real_t> &fg = grad(f);
+  var_t<real_t> &fg = grad_unchecked(f);
   var_t<real_t> l{t, n->ls_.front()};
   var_t<real_t> r{t, n->rs_.front()};
 
   backward_set_grad_if_not_alive(l);
   backward_set_grad_if_not_alive(r);
 
-  grad(l) += fg;
-  grad(r) += fg;
+  grad_unchecked(l) += fg;
+  grad_unchecked(r) += fg;
 }
 
 template <typename real_t>
 void sub_mix<real_t>::backward(tape_t<real_t> *t, node<real_t> *n) {
   var_t<real_t> f{t, n};
-  var_t<real_t> &fg = grad(f);
+  var_t<real_t> &fg = grad_unchecked(f);
   var_t<real_t> l{t, n->ls_.front()};
   var_t<real_t> r{t, n->rs_.front()};
 
   backward_set_grad_if_not_alive(l);
   backward_set_grad_if_not_alive(r);
 
-  grad(l) += fg;
-  grad(r) -= fg;
+  grad_unchecked(l) += fg;
+  grad_unchecked(r) -= fg;
 }
 
 template <typename real_t>
 void mul_mix<real_t>::backward(tape_t<real_t> *t, node<real_t> *n) {
   var_t<real_t> f{t, n};
-  var_t<real_t> &fg = grad(f);
+  var_t<real_t> &fg = grad_unchecked(f);
   var_t<real_t> l{t, n->ls_.front()};
   var_t<real_t> r{t, n->rs_.front()};
 
@@ -1115,7 +1215,7 @@ void mul_mix<real_t>::backward(tape_t<real_t> *t, node<real_t> *n) {
 template <typename real_t>
 void div_mix<real_t>::backward(tape_t<real_t> *t, node<real_t> *n) {
   var_t<real_t> f{t, n};
-  var_t<real_t> &fg = grad(f);
+  var_t<real_t> &fg = grad_unchecked(f);
   var_t<real_t> l{t, n->ls_.front()};
   var_t<real_t> r{t, n->rs_.front()};
 
@@ -1124,16 +1224,16 @@ void div_mix<real_t>::backward(tape_t<real_t> *t, node<real_t> *n) {
 
   backward_grad_accumulate(l, dfdl);
 
-  if (grad(r).is_alive())
-    grad(r) -= dfdr(); // negative sign
+  if (grad_unchecked(r).is_alive())
+    grad_unchecked(r) -= dfdr(); // negative sign
   else
-    grad(r) = -dfdr();
+    grad_unchecked(r) = -dfdr();
 }
 
 template <typename real_t>
 void pow_mix<real_t>::backward(tape_t<real_t> *t, node<real_t> *n) {
   var_t<real_t> f{t, n};
-  var_t<real_t> &fg = grad(f);
+  var_t<real_t> &fg = grad_unchecked(f);
   var_t<real_t> l{t, n->ls_.front()};
   var_t<real_t> r{t, n->rs_.front()};
 
@@ -1155,15 +1255,15 @@ template <typename real_t> void backward(var_t<real_t> v) {
 
   v.t().fill_grads();
 
-  if (!grad(v).is_alive()) {
-    grad(v) = v.t().new_variable(1.0);
+  if (!grad_unchecked(v).is_alive()) {
+    grad_unchecked(v) = v.t().new_variable(1.0);
   }
 
   for (size_t idx = v.n().idx_ + 1; idx != 0; --idx) {
     node<real_t> *n = &(v.t().nodes_[idx - 1]);
     var_t<real_t> n_ = {&v.t(), n};
-    if (!grad(n_).is_alive()) {
-      grad(n_) = v.t().new_variable(0.0);
+    if (!grad_unchecked(n_).is_alive()) {
+      grad_unchecked(n_) = v.t().new_variable(0.0);
     }
     backward_impl(&n_.t(), &n_.n());
   }
