@@ -1357,12 +1357,12 @@ inline std::string as_dot(var_t<real_t> iv, size_t i, size_t cnt,
   node<real_t> &nd = iv.n();
 
   auto is_binary_op = [](std::string const &x) {
-    return x == "add" || x == "sub" || x == "mul" || x == "div" || x == "pow";
+    return x == "add" || x == "sub" || x == "mul" || x == "div" || x == "pow" ||
+           x == "relu";
   };
   auto is_unary_op = [](std::string const &x) {
-    return x == "neg" || x == "tanh" || x == "relu" || x == "sin" ||
-           x == "cos" || x == "identity" || x == "sqrt" || x == "log" ||
-           x == "exp";
+    return x == "neg" || x == "tanh" || x == "sin" || x == "cos" ||
+           x == "identity" || x == "sqrt" || x == "log" || x == "exp";
   };
 
   if (!nd.is_leaf()) {
@@ -1374,11 +1374,12 @@ inline std::string as_dot(var_t<real_t> iv, size_t i, size_t cnt,
         ss << nd.ls_.front()->idx_ + start_cnt << "->" << nd.backwards_.n_
            << cnt << "; ";
       }
-      if (check(nd.rs_.front())) {
+      if ((!nd.rs_.empty()) && check(nd.rs_.front())) {
         ss << nd.rs_.front()->idx_ + start_cnt << "->" << nd.backwards_.n_
            << cnt << "; ";
       }
-      if (check(nd.ls_.front()) || check(nd.rs_.front())) {
+      if (check(nd.ls_.front()) ||
+          ((!nd.rs_.empty()) && check(nd.rs_.front()))) {
         ss << nd.backwards_.n_ << cnt << "->" << idx << "; ";
       }
     } else if (is_unary_op(nd.backwards_.n_)) {
