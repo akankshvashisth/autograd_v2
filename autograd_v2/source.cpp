@@ -1981,9 +1981,74 @@ void test_33() {
   AKS_CHECK_VALUE(nr06, std::numbers::pi_v<double>);
 }
 
+void test_34() {
+  std::cout << "\ntest_34" << std::endl;
+
+  using namespace aks;
+
+  using ag = autograd_traits<double_t>;
+
+  ag::tape_t tape;
+
+  auto to_new_variable = [&](ag::value_t x) { return tape.new_variable(x); };
+  auto in_place_update = [&](ag::var_t v, ag::value_t x) {
+    return v.update_in_place(x);
+  };
+
+  vec_t<ag::var_t> xs =
+      zipped_op(to_new_variable, vec_t<ag::value_t>{2.0, 3.0, 5.0});
+  vec_t<ag::var_t> ys =
+      zipped_op(to_new_variable, vec_t<ag::value_t>{1.0, 2.0, 3.0});
+
+  var_t f = relu(dot(xs, ys));
+
+  backward(f);
+
+  AKS_CHECK_VARIABLE(f, 23.0);
+  AKS_CHECK_VARIABLE(grad(xs[0]), 1.0);
+  AKS_CHECK_VARIABLE(grad(xs[1]), 2.0);
+  AKS_CHECK_VARIABLE(grad(xs[2]), 3.0);
+  AKS_CHECK_VARIABLE(grad(ys[0]), 2.0);
+  AKS_CHECK_VARIABLE(grad(ys[1]), 3.0);
+  AKS_CHECK_VARIABLE(grad(ys[2]), 5.0);
+
+  // AKS_PRINT(as_dot(tape));
+
+  zipped_op_in_place(in_place_update, xs, vec_t<ag::value_t>{-1.0, 2.0, -3.0});
+  zipped_op_in_place(in_place_update, ys, vec_t<ag::value_t>{1.0, -2.0, 3.0});
+
+  forward(&tape);
+
+  AKS_CHECK_VARIABLE(f, 0.0);
+  AKS_CHECK_VARIABLE(grad(xs[0]), 0.0);
+  AKS_CHECK_VARIABLE(grad(xs[1]), 0.0);
+  AKS_CHECK_VARIABLE(grad(xs[2]), 0.0);
+  AKS_CHECK_VARIABLE(grad(ys[0]), 0.0);
+  AKS_CHECK_VARIABLE(grad(ys[1]), 0.0);
+  AKS_CHECK_VARIABLE(grad(ys[2]), 0.0);
+
+  // AKS_PRINT(as_dot(tape));
+
+  zipped_op_in_place(in_place_update, xs, vec_t<ag::value_t>{-1.0, -2.0, -3.0});
+  zipped_op_in_place(in_place_update, ys, vec_t<ag::value_t>{-2.0, -3.0, -5.0});
+
+  forward(&tape);
+
+  AKS_CHECK_VARIABLE(f, 23.0);
+  AKS_CHECK_VARIABLE(grad(xs[0]), -2.0);
+  AKS_CHECK_VARIABLE(grad(xs[1]), -3.0);
+  AKS_CHECK_VARIABLE(grad(xs[2]), -5.0);
+  AKS_CHECK_VARIABLE(grad(ys[0]), -1.0);
+  AKS_CHECK_VARIABLE(grad(ys[1]), -2.0);
+  AKS_CHECK_VARIABLE(grad(ys[2]), -3.0);
+
+  // AKS_PRINT(as_dot(tape));
+}
+
 } // namespace
 
 int main_tests() {
+  test_34();
   test_33();
   test_32();
   test_31();

@@ -292,6 +292,13 @@ auto zipped_op(F &&f, T &&t, Ts &&...ts) {
   return ret;
 }
 
+template <typename F, typename T, typename... Ts>
+auto zipped_op_in_place(F &&f, T &&t, Ts &&...ts) {
+  for (size_t i = 0; i < t.size(); ++i) {
+    f(t[i], ts[i]...);
+  }
+}
+
 //} // namespace detail
 
 template <typename real_t> struct tape_t;
