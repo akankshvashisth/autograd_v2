@@ -1778,9 +1778,50 @@ void test_29() {
   AKS_CHECK_VALUE(t.nodes_.size(), 18);
 }
 
+void test_30() {
+  std::cout << "\ntest_30" << std::endl;
+
+  using namespace aks;
+
+  ag_d::tape_t t;
+
+  ag_d::var_t x = t.new_variable(-0.4);
+  ag_d::var_t y = t.new_variable(0.3);
+
+  ag_d::var_t z = x + y;
+
+  ag_d::var_t f = ag_d::value_t(1.0) * relu(z);
+
+  backward(f);
+
+  ag_d::var_t dfdx = grad(x);
+  ag_d::var_t dfdy = grad(y);
+
+  AKS_CHECK_VARIABLE(x, -0.4);
+  AKS_CHECK_VARIABLE(y, 0.3);
+  AKS_CHECK_VARIABLE(z, -0.1);
+  AKS_CHECK_VARIABLE(f, 0.0);
+  AKS_CHECK_VARIABLE(dfdx, 0.0);
+  AKS_CHECK_VARIABLE(dfdy, 0.0);
+  AKS_CHECK_VALUE(t.nodes_.size(), 15);
+
+  y.update_in_place(0.5);
+
+  forward(&t);
+
+  AKS_CHECK_VARIABLE(x, -0.4);
+  AKS_CHECK_VARIABLE(y, 0.5);
+  AKS_CHECK_VARIABLE(z, 0.1);
+  AKS_CHECK_VARIABLE(f, 0.1);
+  AKS_CHECK_VARIABLE(dfdx, 0.0);
+  AKS_CHECK_VARIABLE(dfdy, 0.0);
+  AKS_CHECK_VALUE(t.nodes_.size(), 15);
+}
+
 } // namespace
 
 int main_tests() {
+  test_30();
   test_29();
   test_28();
   test_27();
