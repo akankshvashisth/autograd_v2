@@ -3,6 +3,8 @@
 
 #include "autograd_v2.hpp"
 
+#include <random>
+
 namespace {
 using double_t = double;
 using float_t = float;
@@ -11,6 +13,7 @@ template <typename value_type> struct autograd_traits {
   using value_t = value_type;
   using var_t = aks::var_t<value_type>;
   using tape_t = aks::tape_t<value_type>;
+  using vec_vars_t = aks::vec_t<var_t>;
 };
 
 using ag_d = autograd_traits<double_t>;
@@ -2047,7 +2050,166 @@ void test_34() {
 
 } // namespace
 
+namespace {
+using ag_mlp = autograd_traits<double_t>;
+std::mt19937_64 rng;
+
+struct neuron {
+  neuron(ag_mlp::tape_t *t, size_t n_in, bool nlin)
+      : tape(t), nonlinearity(nlin) {
+
+    std::uniform_real_distribution<ag_mlp::value_t> unif(
+        -std::sqrt(double_t(n_in)), std::sqrt(double_t(n_in)));
+
+    ws.reserve(n_in);
+
+    b = tape->new_variable(-7.0); //(unif(rng));
+    for (size_t i = 0; i < n_in; i++) {
+      ws.emplace_back(tape->new_variable(11.0 + i));
+      //(unif(rng)));
+    }
+
+    params = parameters_impl();
+  }
+
+  void forward(ag_mlp::vec_vars_t const &xs, ag_mlp::var_t &out) {
+    ag_mlp::var_t r = b + dot(ws, xs);
+    out = (nonlinearity ? relu(r) : r);
+  }
+
+  ag_mlp::vec_vars_t const &parameters() { return params; }
+
+  ag_mlp::vec_vars_t parameters_impl() {
+    ag_mlp::vec_vars_t ret;
+    ret.reserve(ws.size() + 1);
+    ret.push_back(b);
+    ret.insert(ret.end(), ws.begin(), ws.end());
+    return ret;
+  }
+
+  ag_mlp::tape_t *tape;
+  bool nonlinearity = true;
+  ag_mlp::var_t b;
+  ag_mlp::vec_vars_t ws;
+  ag_mlp::vec_vars_t params;
+};
+
+struct layer_linear {
+  layer_linear(ag_mlp::tape_t *t, size_t n_in, size_t n_out, bool nlin) {
+    for (size_t i = 0; i < n_out; i++) {
+      neurons.emplace_back(t, n_in, nlin);
+    }
+    params = parameters_impl();
+  }
+
+  void operator()(ag_mlp::vec_vars_t const &x, ag_mlp::vec_vars_t &out) {
+    if (out.size() != neurons.size()) {
+      out.resize(neurons.size());
+    }
+    for (size_t i = 0; i < neurons.size(); i++) {
+      neurons[i].forward(x, out[i]);
+    }
+  }
+
+  ag_mlp::vec_vars_t const &parameters() { return params; }
+
+private:
+  ag_mlp::vec_vars_t parameters_impl() {
+    ag_mlp::vec_vars_t ret;
+    for (auto &n : neurons) {
+      ag_mlp::vec_vars_t const &p = n.parameters();
+      ret.insert(ret.end(), p.begin(), p.end());
+    }
+    return ret;
+  }
+
+  aks::vec_t<neuron> neurons;
+  ag_mlp::vec_vars_t params;
+};
+
+struct mlp {
+
+  mlp(size_t n_in, aks::vec_t<size_t> n_outs) {
+    aks::vec_t<size_t> sz(1, n_in);
+    sz.insert(sz.end(), n_outs.begin(), n_outs.end());
+
+    for (size_t i = 0; i < n_outs.size(); i++) {
+      layers.emplace_back(&tape, sz[i], sz[i + 1], (i != n_outs.size() - 1));
+    }
+
+    params = parameters_impl();
+  }
+
+  void forward(ag_mlp::vec_vars_t const &x, ag_mlp::vec_vars_t &out,
+               ag_mlp::vec_vars_t &buffer) {
+    out.clear();
+    out.insert(out.end(), x.begin(), x.end());
+    for (auto &layer : layers) {
+      layer(out, buffer);
+      buffer.swap(out);
+    }
+    // out has the result
+  }
+
+  ag_mlp::vec_vars_t const &parameters() { return params; }
+
+  ag_mlp::vec_vars_t parameters_impl() {
+    ag_mlp::vec_vars_t ret;
+    for (auto &l : layers) {
+      ret.insert(ret.end(), l.parameters().begin(), l.parameters().end());
+    }
+    return ret;
+  }
+
+  ag_mlp::tape_t tape;
+  aks::vec_t<layer_linear> layers;
+  ag_mlp::vec_vars_t params;
+  ag_mlp::var_t last_neural_node;
+};
+
+void test_35() {
+  std::cout << "\ntest_35" << std::endl;
+
+  using namespace aks;
+
+  aks::vec_t<double_t> Xs = {2.0, 5.0, 7.0};
+  aks::vec_t<aks::vec_t<double_t>> expected = {
+      {158, 11, 22, 1, 15}, {521, 11, 55, 1, 48}, {763, 11, 77, 1, 70}};
+
+  mlp nn(1, {1, 1});
+
+  ag_mlp::vec_vars_t out(1), buffer(1);
+  ag_mlp::vec_vars_t x(1);
+
+  size_t expected_idx = 0;
+  for (double_t X : Xs) {
+    if (x[0].is_alive()) {
+      x[0].update_in_place(X);
+    } else {
+      x[0] = nn.tape.new_variable(X);
+    }
+
+    if (!out[0].is_alive()) {
+      nn.forward(x, out, buffer);
+      aks::backward(out[0]);
+    } else {
+      aks::forward(&nn.tape);
+    }
+
+    size_t expected_idx2 = 0;
+    AKS_CHECK_VARIABLE(out[0], (expected[expected_idx][expected_idx2++]));
+    for (auto &p : nn.parameters()) {
+      AKS_CHECK_VARIABLE(grad(p), (expected[expected_idx][expected_idx2++]));
+    }
+
+    ++expected_idx;
+  }
+}
+
+} // namespace
+
 int main_tests() {
+  test_35();
   test_34();
   test_33();
   test_32();

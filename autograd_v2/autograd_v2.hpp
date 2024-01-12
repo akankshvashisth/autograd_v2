@@ -1371,6 +1371,7 @@ inline std::string as_dot(var_t<real_t> iv, size_t i, size_t cnt,
     return x == "neg" || x == "tanh" || x == "sin" || x == "cos" ||
            x == "identity" || x == "sqrt" || x == "log" || x == "exp";
   };
+  auto is_binary_vec_op = [](std::string const &x) { return x == "dot"; };
 
   if (!nd.is_leaf()) {
     ss << "\n"
@@ -1397,7 +1398,28 @@ inline std::string as_dot(var_t<real_t> iv, size_t i, size_t cnt,
       if (check(nd.ls_.front())) {
         ss << nd.backwards_.n_ << cnt << "->" << idx << "; ";
       }
+    } else if (is_binary_vec_op(nd.backwards_.n_)) {
+      if (check(nd.ls_.front())) {
+        auto const &children0 = nd.ls_;
+        for (auto const &c : children0) {
+          // if (check(c)) {
+          ss << c->idx_ << "->" << nd.backwards_.n_ << cnt << ";\n";
+          //}
+        }
+      }
+      if (check(nd.rs_.front())) {
+        auto const &children1 = nd.rs_;
+        for (auto const &c : children1) {
+          // if (check(c)) {
+          ss << c->idx_ << "->" << nd.backwards_.n_ << cnt << ";\n";
+          //}
+        }
+      }
+      if (check(nd.ls_.front()) || check(nd.rs_.front())) {
+        ss << nd.backwards_.n_ << cnt << "->" << idx << ";\n";
+      }
     }
+
   } else {
     ss << "\n"
        << idx << " [label = \"[" << idx << "] " << std::setprecision(15)
