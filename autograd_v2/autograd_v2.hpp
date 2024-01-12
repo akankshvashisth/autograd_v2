@@ -549,7 +549,8 @@ template <typename real_t> struct relu_mix {
   static value_type apply(value_type a) {
     if constexpr (::aks::vcl_detail::is_vcl_vec<value_type>::value) {
       using namespace ::aks::vcl_detail;
-      return vec_relu(a);
+      // return vec_relu(a);
+      return vcl_select(a > value_type(0.0), a, value_type(0.0));
     } else {
       using namespace std;
       return (a > value_type(0.0)) ? a : value_type(0.0);
@@ -655,6 +656,38 @@ template <typename mix> struct u_op_mix : mix {
   using value_type = mix::value_type;
   static value_type apply_op(value_type const &a) { return apply(a); }
   static void forward(node<value_type> *n) {
+    n->v_ = apply_op(n->ls_.front()->v_);
+  }
+  static var_t<value_type> fwd_onto_tape(var_t<value_type> const &a) {
+    node<value_type> *new_node = a.t().new_node();
+    new_node->backwards_ = bf();
+    new_node->forwards_ = {bf().n_, forward};
+    new_node->ls_.push_back(a.np());
+    new_node->v_ = apply_op(a.n().v_);
+    return var_t{&a.t(), new_node};
+  }
+};
+
+template <typename real_t>
+struct u_op_mix<relu_mix<real_t>> : relu_mix<real_t> {
+  using mix = relu_mix<real_t>;
+  using mix::apply;
+  using mix::bf;
+  using value_type = mix::value_type;
+  static value_type apply_op(value_type const &a) { return apply(a); }
+  static void forward(node<value_type> *n) {
+    if (!n->rs_.empty()) {
+      // then we have had a backward run we want to update
+      if constexpr (aks::vcl_detail::is_vcl_vec<value_type>::value) {
+        using namespace ::aks::vcl_detail;
+        n->rs_.front()->v_ = vcl_select(n->ls_.front()->v_ < value_type(0.0),
+                                        value_type(0.0), value_type(1.0));
+      } else {
+        n->rs_.front()->v_ = n->ls_.front()->v_ < value_type(0.0)
+                                 ? value_type(0.0)
+                                 : value_type(1.0);
+      }
+    }
     n->v_ = apply_op(n->ls_.front()->v_);
   }
   static var_t<value_type> fwd_onto_tape(var_t<value_type> const &a) {
@@ -1117,9 +1150,16 @@ void relu_mix<real_t>::backward(tape_t<real_t> *t, node<real_t> *n) {
   auto df = [&]() {
     if constexpr (aks::vcl_detail::is_vcl_vec<real_t>::value) {
       using namespace ::aks::vcl_detail;
-      return vcl_select(l.value() > 0.0, real_t{1.0}, real_t{0.0}) * fg;
+      real_t selection =
+          vcl_select(l.value() > real_t{0.0}, real_t{1.0}, real_t{0.0});
+      var_t<real_t> sel = t->new_variable(selection);
+      n->rs_.push_back(sel.np());
+      return sel * fg;
     } else {
-      return real_t(l.value() > 0.0) * fg;
+      real_t selection = real_t(l.value() > real_t{0.0});
+      var_t<real_t> sel = t->new_variable(selection);
+      n->rs_.push_back(sel.np());
+      return sel * fg;
     }
   };
 
