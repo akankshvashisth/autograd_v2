@@ -14,6 +14,7 @@ template <typename value_type> struct autograd_traits {
 };
 
 using ag_d = autograd_traits<double_t>;
+// using ag_d = autograd_traits<vcl::Vec2d>;
 using ag_f = autograd_traits<float_t>;
 
 constexpr bool QUIET_PASS = true;
@@ -876,7 +877,7 @@ void test_19() {
       tape.push_state();
       tape.zero_grad();
       backward(fx);
-      ag_d::var_t dfdx = grad(x);
+      ag_d::var_t dfdx = grad(x, false);
       ag_d::value_t r_dfdx = dfdx.value();
       tape.pop_state();
       return r_dfdx;
@@ -1625,7 +1626,7 @@ void test_28() {
       tape.push_state();
       tape.zero_grad();
       backward(fx);
-      ag::var_t dfdx = grad(x);
+      ag::var_t dfdx = grad(x, false);
       ag::value_t r_dfdx = dfdx.value();
 
       AKS_CHECK_PRINT(tape.nodes_.size(), tape.nodes_.size(),
@@ -1697,9 +1698,237 @@ void test_28() {
 #endif
 }
 
+void test_29() {
+  std::cout << "\ntest_29" << std::endl;
+
+  using namespace aks;
+
+  ag_d::tape_t t;
+
+  ag_d::var_t x = t.new_variable(2);
+  ag_d::var_t y = t.new_variable(3);
+  ag_d::var_t z = x + y;
+
+  ag_d::var_t f = (x ^ y) * z;
+
+  backward(f);
+
+  ag_d::var_t dfdx = grad(x);
+  ag_d::var_t dfdy = grad(y);
+  ag_d::var_t dfdz = grad(z, false);
+
+  AKS_CHECK_VARIABLE(z, 5);
+  AKS_CHECK_VARIABLE(f, 40);
+  AKS_CHECK_VARIABLE(dfdx, 68);
+  AKS_CHECK_VARIABLE(dfdy, 35.7258872223978);
+  AKS_CHECK_VARIABLE(dfdz, 8);
+  AKS_CHECK_VALUE(t.nodes_.size(), 18);
+
+  x.update_in_place(3);
+
+  forward(&t);
+
+  AKS_CHECK_VARIABLE(z, 6);
+  AKS_CHECK_VARIABLE(f, 162);
+  AKS_CHECK_VARIABLE(dfdx, 189);
+  AKS_CHECK_VARIABLE(dfdy, 204.975190764234);
+  AKS_CHECK_VARIABLE(dfdz, 27);
+  AKS_CHECK_VALUE(t.nodes_.size(), 18);
+
+  y.update_in_place(4);
+
+  forward_from(&t, &y);
+
+  AKS_CHECK_VARIABLE(z, 7);
+  AKS_CHECK_VARIABLE(f, 567);
+  AKS_CHECK_VARIABLE(dfdx, 837);
+  AKS_CHECK_VARIABLE(dfdy, 703.9131676748182834);
+  AKS_CHECK_VARIABLE(dfdz, 81);
+  AKS_CHECK_VALUE(t.nodes_.size(), 18);
+
+  y.update_in_place(5);
+  // z.update_in_place(5); //this will fail, can't update a non-leaf node
+  // "safely"
+
+  forward_to(&t, &z);
+
+  AKS_CHECK_VARIABLE(z, 8);
+  AKS_CHECK_VARIABLE(f, 567);
+  AKS_CHECK_VARIABLE(dfdx, 837);
+  AKS_CHECK_VARIABLE(dfdy, 703.9131676748182834);
+  AKS_CHECK_VARIABLE(dfdz, 81);
+  AKS_CHECK_VALUE(t.nodes_.size(), 18);
+
+  forward_from(&t, &z, false /*start from a non-leaf*/);
+
+  AKS_CHECK_VARIABLE(z, 8);
+  AKS_CHECK_VARIABLE(f, 1944);
+  AKS_CHECK_VARIABLE(dfdx, 3483);
+  AKS_CHECK_VARIABLE(dfdy, 2378.70228917080522);
+  AKS_CHECK_VARIABLE(dfdz, 243);
+  AKS_CHECK_VALUE(t.nodes_.size(), 18);
+
+  forward(&t);
+
+  AKS_CHECK_VARIABLE(z, 8);
+  AKS_CHECK_VARIABLE(f, 1944);
+  AKS_CHECK_VARIABLE(dfdx, 3483);
+  AKS_CHECK_VARIABLE(dfdy, 2378.70228917080522);
+  AKS_CHECK_VARIABLE(dfdz, 243);
+  AKS_CHECK_VALUE(t.nodes_.size(), 18);
+}
+
+void test_30() {
+  std::cout << "\ntest_30" << std::endl;
+
+  using namespace aks;
+
+  ag_d::tape_t t;
+
+  ag_d::var_t x = t.new_variable(-0.4);
+  ag_d::var_t y = t.new_variable(0.3);
+
+  ag_d::var_t z = x + y;
+
+  ag_d::var_t f = ag_d::value_t(1.0) * relu(z);
+
+  backward(f);
+
+  ag_d::var_t dfdx = grad(x);
+  ag_d::var_t dfdy = grad(y);
+
+  // AKS_PRINT(as_dot(t));
+
+  AKS_CHECK_VARIABLE(x, -0.4);
+  AKS_CHECK_VARIABLE(y, 0.3);
+  AKS_CHECK_VARIABLE(z, -0.1);
+  AKS_CHECK_VARIABLE(f, 0.0);
+  AKS_CHECK_VARIABLE(dfdx, 0.0);
+  AKS_CHECK_VARIABLE(dfdy, 0.0);
+  AKS_CHECK_VALUE(t.nodes_.size(), 15);
+
+  y.update_in_place(0.5);
+
+  // in rerun of forward, all the conditions taken before will be the same, so
+  // relu 0 * x will still be 0 * x
+  forward(&t);
+
+  // AKS_PRINT(as_dot(t));
+
+  AKS_CHECK_VARIABLE(x, -0.4);
+  AKS_CHECK_VARIABLE(y, 0.5);
+  AKS_CHECK_VARIABLE(z, 0.1);
+  AKS_CHECK_VARIABLE(f, 0.1);
+  AKS_CHECK_VARIABLE(dfdx, 1.0);
+  AKS_CHECK_VARIABLE(dfdy, 1.0);
+  AKS_CHECK_VALUE(t.nodes_.size(), 15);
+}
+
+void test_31() {
+  std::cout << "\ntest_31" << std::endl;
+#ifndef AKS_NO_VCL
+  using Vec = vcl::Vec4f;
+  using ag = autograd_traits<Vec>;
+
+  using namespace aks;
+
+  ag::tape_t t;
+
+  ag::var_t x = t.new_variable(Vec(-0.1f, -1.2f, -1.3f, -0.4f));
+  ag::var_t y = t.new_variable(Vec(1.2f, 1.0f, 1.5f, -0.4f));
+
+  ag::var_t f = relu(relu(relu(relu(x + y))));
+
+  backward(f);
+
+  ag::var_t dfdx = grad(x);
+  ag::var_t dfdy = grad(y);
+
+  AKS_CHECK_VALUE(f.value()[0], 1.1f);
+  AKS_CHECK_VALUE(f.value()[1], 0.0f);
+  AKS_CHECK_VALUE(f.value()[2], 0.2f);
+  AKS_CHECK_VALUE(f.value()[3], 0.0f);
+  AKS_CHECK_VALUE(dfdx.value()[0], 1.f);
+  AKS_CHECK_VALUE(dfdx.value()[1], 0.f);
+  AKS_CHECK_VALUE(dfdx.value()[2], 1.f);
+  AKS_CHECK_VALUE(dfdx.value()[3], 0.f);
+  AKS_CHECK_VALUE(dfdy.value()[0], 1.f);
+  AKS_CHECK_VALUE(dfdy.value()[1], 0.f);
+  AKS_CHECK_VALUE(dfdy.value()[2], 1.f);
+  AKS_CHECK_VALUE(dfdy.value()[3], 0.f);
+
+  // AKS_PRINT(as_dot(t));
+
+  x.update_in_place(Vec(-0.4f, -0.1f, -1.2f, -1.3f));
+  y.update_in_place(Vec(-0.4f, 1.2f, 1.0f, 1.5f));
+
+  forward(&t);
+
+  AKS_CHECK_VALUE(f.value()[0], 0.0f);
+  AKS_CHECK_VALUE(f.value()[1], 1.1f);
+  AKS_CHECK_VALUE(f.value()[2], 0.0f);
+  AKS_CHECK_VALUE(f.value()[3], 0.2f);
+
+  AKS_CHECK_VALUE(dfdx.value()[0], 0.f);
+  AKS_CHECK_VALUE(dfdx.value()[1], 1.f);
+  AKS_CHECK_VALUE(dfdx.value()[2], 0.f);
+  AKS_CHECK_VALUE(dfdx.value()[3], 1.f);
+
+  AKS_CHECK_VALUE(dfdy.value()[0], 0.f);
+  AKS_CHECK_VALUE(dfdy.value()[1], 1.f);
+  AKS_CHECK_VALUE(dfdy.value()[2], 0.f);
+  AKS_CHECK_VALUE(dfdy.value()[3], 1.f);
+
+  // AKS_PRINT(as_dot(t));
+#endif
+}
+
+void test_32() {
+  std::cout << "\ntest_32" << std::endl;
+
+  using Vec = float_t;
+  using ag = autograd_traits<Vec>;
+
+  using namespace aks;
+
+  ag::tape_t t;
+
+  ag::var_t x = t.new_variable(Vec(-0.1f));
+  ag::var_t y = t.new_variable(Vec(1.2f));
+
+  ag::var_t f = relu(relu(relu(relu(x + y))));
+
+  backward(f);
+
+  ag::var_t dfdx = grad(x);
+  ag::var_t dfdy = grad(y);
+
+  AKS_CHECK_VALUE(f.value(), 1.1f);
+
+  AKS_CHECK_VALUE(dfdx.value(), 1.f);
+  AKS_CHECK_VALUE(dfdy.value(), 1.f);
+
+  // AKS_PRINT(as_dot(t));
+
+  x.update_in_place(Vec(-0.4f));
+  y.update_in_place(Vec(-0.4f));
+
+  forward(&t);
+
+  AKS_CHECK_VALUE(f.value(), 0.0f);
+  AKS_CHECK_VALUE(dfdx.value(), 0.f);
+  AKS_CHECK_VALUE(dfdy.value(), 0.f);
+
+  // AKS_PRINT(as_dot(t));
+}
+
 } // namespace
 
 int main_tests() {
+  test_32();
+  test_31();
+  test_30();
+  test_29();
   test_28();
   test_27();
   test_26();
