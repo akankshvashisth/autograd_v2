@@ -1922,9 +1922,69 @@ void test_32() {
   // AKS_PRINT(as_dot(t));
 }
 
+void test_33() {
+  std::cout << "\ntest_33" << std::endl;
+
+  using namespace aks;
+
+  using ag = autograd_traits<double_t>;
+
+  auto NR = [](ag::value_t guess, auto f, ag::value_t tolerance = 1e-6) {
+    ag::tape_t tape;
+
+    ag::var_t x = tape.new_variable(guess);
+    ag::var_t fx;
+    ag::var_t y;
+
+    fx = f(x);
+    bool not_solved = (abs(fx.value()) > tolerance);
+
+    if (not_solved) {
+      backward(fx);
+      y = x - (fx / grad(x));
+      x.update_in_place(y.value());
+    }
+
+    const size_t size_to_check = tape.nodes_.size();
+
+    while (not_solved) {
+      forward_to(&tape, &fx);
+      not_solved = (abs(fx.value()) > tolerance);
+      if (not_solved) {
+        // we are doing a partial completion, so safe=false
+        forward_from(&tape, &fx, false);
+        x.update_in_place(y.value());
+      }
+      AKS_CHECK_VALUE(tape.nodes_.size(), size_to_check);
+    };
+
+    return x.value();
+  };
+
+  auto nr01 = NR(3.0, [](auto x) { return x * x - ag::value_t(4.0); });
+  AKS_CHECK_VALUE(nr01, 2.0);
+
+  auto nr02 = NR(3.0, [](auto x) { return x * x - ag::value_t(16.0); });
+  AKS_CHECK_VALUE(nr02, 4.0);
+
+  auto nr03 = NR(5.0, [](auto x) { return x * x * x - ag::value_t(27.0); });
+  AKS_CHECK_VALUE(nr03, 3.0);
+
+  auto nr04 = NR(
+      3.0, [](auto x) { return (x ^ ag::value_t(4.0)) - ag::value_t(16.0); });
+  AKS_CHECK_VALUE(nr04, 2.0);
+
+  auto nr05 = NR(ag::value_t(0.2), [](auto x) { return sin(x); });
+  AKS_CHECK_VALUE(nr05, ag::value_t(0.0));
+
+  auto nr06 = NR(ag::value_t(1.2), [](auto x) { return sin(x); });
+  AKS_CHECK_VALUE(nr06, std::numbers::pi_v<double>);
+}
+
 } // namespace
 
 int main_tests() {
+  test_33();
   test_32();
   test_31();
   test_30();
