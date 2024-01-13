@@ -638,7 +638,7 @@ template <typename real_t> struct gsum_mix {
   static value_type start() { return 1.0; }
   static void apply(value_type &r, value_type a) { r *= a; }
   static back_f<value_type> bf() { return {"gsum", nullptr}; }
-  static void backward(tape_t<value_type> *t, node<value_type> *n);
+  // static void backward(tape_t<value_type> *t, node<value_type> *n);
 };
 
 // template <typename real_t>

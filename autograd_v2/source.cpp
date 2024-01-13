@@ -2059,14 +2059,13 @@ struct neuron {
       : tape(t), nonlinearity(nlin) {
 
     std::uniform_real_distribution<ag_mlp::value_t> unif(
-        -std::sqrt(double_t(n_in)), std::sqrt(double_t(n_in)));
+        -std::sqrt(1.0 / double_t(n_in)), std::sqrt(1.0 / double_t(n_in)));
 
     ws.reserve(n_in);
 
-    b = tape->new_variable(-7.0); //(unif(rng));
+    b = tape->new_variable(unif(rng));
     for (size_t i = 0; i < n_in; i++) {
-      ws.emplace_back(tape->new_variable(11.0 + i));
-      //(unif(rng)));
+      ws.emplace_back(tape->new_variable(unif(rng)));
     }
 
     params = parameters_impl();
@@ -2102,7 +2101,7 @@ struct layer_linear {
     params = parameters_impl();
   }
 
-  void operator()(ag_mlp::vec_vars_t const &x, ag_mlp::vec_vars_t &out) {
+  void forward(ag_mlp::vec_vars_t const &x, ag_mlp::vec_vars_t &out) {
     if (out.size() != neurons.size()) {
       out.resize(neurons.size());
     }
@@ -2145,7 +2144,8 @@ struct mlp {
     out.clear();
     out.insert(out.end(), x.begin(), x.end());
     for (auto &layer : layers) {
-      layer(out, buffer);
+      buffer.clear();
+      layer.forward(out, buffer);
       buffer.swap(out);
     }
     // out has the result
@@ -2173,13 +2173,21 @@ void test_35() {
   using namespace aks;
 
   aks::vec_t<double_t> Xs = {2.0, 5.0, 7.0};
-  aks::vec_t<aks::vec_t<double_t>> expected = {
-      {158, 11, 22, 1, 15}, {521, 11, 55, 1, 48}, {763, 11, 77, 1, 70}};
+  aks::vec_t<aks::vec_t<double_t>> expected = {{0.0496, 0.06, 0.12, 1.0, 0.16},
+                                               {0.0604, 0.06, 0.3, 1.0, 0.34},
+                                               {0.0676, 0.06, 0.42, 1.0, 0.46}};
 
   mlp nn(1, {1, 1});
 
   ag_mlp::vec_vars_t out(1), buffer(1);
   ag_mlp::vec_vars_t x(1);
+
+  ag_mlp::vec_vars_t params = nn.parameters();
+
+  params[0].update_in_place(0.04);
+  params[1].update_in_place(0.06);
+  params[2].update_in_place(0.04);
+  params[3].update_in_place(0.06);
 
   size_t expected_idx = 0;
   for (double_t X : Xs) {
@@ -2197,18 +2205,105 @@ void test_35() {
     }
 
     size_t expected_idx2 = 0;
-    AKS_CHECK_VARIABLE(out[0], (expected[expected_idx][expected_idx2++]));
+    AKS_CHECK_VARIABLE(out[0], (expected[expected_idx][expected_idx2]));
+    ++expected_idx2;
     for (auto &p : nn.parameters()) {
-      AKS_CHECK_VARIABLE(grad(p), (expected[expected_idx][expected_idx2++]));
+      AKS_CHECK_VARIABLE(grad(p), (expected[expected_idx][expected_idx2]));
+      ++expected_idx2;
     }
 
     ++expected_idx;
   }
 }
 
+void test_36() {
+  std::cout << "\ntest_36" << std::endl;
+
+  using namespace aks;
+
+  const double_t learning_rate = 0.1;
+  size_t count = 0;
+  size_t const max_iterations = 125;
+  vec_t<double_t> losses;
+
+  const vec_t<vec_t<double_t>> Xs = {
+      {2.0, 3.0, -1.0}, {3.0, -1.0, 0.5}, {0.5, 1.0, 1.0}, {1.0, 1.0, -1.0}};
+  const vec_t<double_t> Ys = {1.0, -1.0, -1.0, 1.0};
+
+  mlp nn(3, {2, 1});
+
+  auto loss_func = [&](ag_mlp::vec_vars_t const &y,
+                       ag_mlp::vec_vars_t const &pred) {
+    ag_mlp::var_t two = nn.tape.new_variable(2.0);
+    ag_mlp::vec_vars_t each(y.size());
+
+    for (size_t i = 0; i < y.size(); ++i) {
+      each[i] = (pred[i] - y[i]) ^ two;
+    }
+    return mean(each);
+  };
+
+  ag_mlp::vec_vars_t ys =
+      zipped_op([&](double_t x) { return nn.tape.new_variable(x); }, Ys);
+  ag_mlp::vec_vars_t buffer, pred;
+  ag_mlp::vec_vars_t x;
+  ag_mlp::var_t loss;
+  ag_mlp::vec_vars_t preds;
+
+  ag_mlp::vec_vars_t params = nn.parameters();
+
+  params[0].update_in_place(-0.2856);
+  params[1].update_in_place(-0.3614);
+  params[2].update_in_place(0.4660);
+  params[3].update_in_place(0.2030);
+  params[4].update_in_place(0.2782);
+  params[5].update_in_place(0.3317);
+  params[6].update_in_place(-0.0799);
+  params[7].update_in_place(0.4280);
+  params[8].update_in_place(-0.7046);
+  params[9].update_in_place(0.5160);
+  params[10].update_in_place(-0.2509);
+
+  while (count++ < max_iterations) {
+    if (!loss.is_alive()) {
+      for (size_t i = 0; i < Xs.size(); ++i) {
+        x.resize(Xs[i].size());
+        for (size_t j = 0; j < Xs[i].size(); ++j) {
+          x[j] = nn.tape.new_variable(Xs[i][j]);
+        }
+        nn.forward(x, pred, buffer);
+        preds.push_back(pred[0]);
+      }
+      loss = loss_func(ys, preds);
+      nn.tape.zero_grad();
+      aks::backward(loss);
+
+    } else {
+      for (size_t i = 0; i < Xs.size(); ++i) {
+        for (size_t j = 0; j < Xs[i].size(); ++j) {
+          x[j].update_in_place(Xs[i][j]);
+        }
+        aks::forward(&nn.tape);
+      }
+    }
+
+    losses.push_back(loss.value());
+
+    for (size_t i = 0; i < params.size(); ++i) {
+      ag_mlp::var_t g = grad(params[i]);
+      double_t update = params[i].value() - (learning_rate * g.value());
+      params[i].update_in_place(update);
+    }
+  }
+
+  AKS_CHECK_VALUE(losses.front(), 1.4640);
+  AKS_CHECK_VALUE(losses.back(), 0.0);
+}
+
 } // namespace
 
 int main_tests() {
+  test_36();
   test_35();
   test_34();
   test_33();
