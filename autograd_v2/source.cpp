@@ -2052,14 +2052,14 @@ void test_34() {
 
 namespace {
 using ag_mlp = autograd_traits<double_t>;
-std::mt19937_64 rng;
 
 struct neuron {
-  neuron(ag_mlp::tape_t *t, size_t n_in, bool nlin)
+  neuron(std::mt19937_64 &rng, ag_mlp::tape_t *t, size_t n_in, bool nlin)
       : tape(t), nonlinearity(nlin) {
 
-    std::uniform_real_distribution<ag_mlp::value_t> unif(
-        -std::sqrt(1.0 / double_t(n_in)), std::sqrt(1.0 / double_t(n_in)));
+    const double_t k = 1.0 / double_t(n_in);
+    const double_t sqrt_k = std::sqrt(k);
+    std::uniform_real_distribution<ag_mlp::value_t> unif(-k, k);
 
     ws.reserve(n_in);
 
@@ -2094,9 +2094,10 @@ struct neuron {
 };
 
 struct layer_linear {
-  layer_linear(ag_mlp::tape_t *t, size_t n_in, size_t n_out, bool nlin) {
+  layer_linear(std::mt19937_64 &rng, ag_mlp::tape_t *t, size_t n_in,
+               size_t n_out, bool nlin) {
     for (size_t i = 0; i < n_out; i++) {
-      neurons.emplace_back(t, n_in, nlin);
+      neurons.emplace_back(rng, t, n_in, nlin);
     }
     params = parameters_impl();
   }
@@ -2128,12 +2129,14 @@ private:
 
 struct mlp {
 
-  mlp(size_t n_in, aks::vec_t<size_t> n_outs) {
+  mlp(size_t n_in, aks::vec_t<size_t> n_outs, unsigned long long seed = 42) {
+    rng.seed(seed);
     aks::vec_t<size_t> sz(1, n_in);
     sz.insert(sz.end(), n_outs.begin(), n_outs.end());
 
     for (size_t i = 0; i < n_outs.size(); i++) {
-      layers.emplace_back(&tape, sz[i], sz[i + 1], (i != n_outs.size() - 1));
+      layers.emplace_back(rng, &tape, sz[i], sz[i + 1],
+                          (i != n_outs.size() - 1));
     }
 
     params = parameters_impl();
@@ -2165,6 +2168,7 @@ struct mlp {
   aks::vec_t<layer_linear> layers;
   ag_mlp::vec_vars_t params;
   ag_mlp::var_t last_neural_node;
+  std::mt19937_64 rng;
 };
 
 void test_35() {
@@ -2223,14 +2227,14 @@ void test_36() {
 
   const double_t learning_rate = 0.1;
   size_t count = 0;
-  size_t const max_iterations = 125;
+  size_t const max_iterations = 150;
   vec_t<double_t> losses;
 
   const vec_t<vec_t<double_t>> Xs = {
       {2.0, 3.0, -1.0}, {3.0, -1.0, 0.5}, {0.5, 1.0, 1.0}, {1.0, 1.0, -1.0}};
   const vec_t<double_t> Ys = {1.0, -1.0, -1.0, 1.0};
 
-  mlp nn(3, {2, 1});
+  mlp nn(3, {2, 1}, 55220);
 
   auto loss_func = [&](ag_mlp::vec_vars_t const &y,
                        ag_mlp::vec_vars_t const &pred) {
@@ -2251,18 +2255,6 @@ void test_36() {
   ag_mlp::vec_vars_t preds;
 
   ag_mlp::vec_vars_t params = nn.parameters();
-
-  params[0].update_in_place(-0.2856);
-  params[1].update_in_place(-0.3614);
-  params[2].update_in_place(0.4660);
-  params[3].update_in_place(0.2030);
-  params[4].update_in_place(0.2782);
-  params[5].update_in_place(0.3317);
-  params[6].update_in_place(-0.0799);
-  params[7].update_in_place(0.4280);
-  params[8].update_in_place(-0.7046);
-  params[9].update_in_place(0.5160);
-  params[10].update_in_place(-0.2509);
 
   while (count++ < max_iterations) {
     if (!loss.is_alive()) {
@@ -2296,7 +2288,7 @@ void test_36() {
     }
   }
 
-  AKS_CHECK_VALUE(losses.front(), 1.4640);
+  AKS_CHECK_VALUE(losses.front(), 1.18089);
   AKS_CHECK_VALUE(losses.back(), 0.0);
 }
 
