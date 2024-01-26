@@ -6,6 +6,7 @@
 #include <random>
 
 namespace {
+
 using double_t = double;
 using float_t = float;
 
@@ -13,7 +14,8 @@ template <typename value_type> struct autograd_traits {
   using value_t = value_type;
   using var_t = aks::var_t<value_type>;
   using tape_t = aks::tape_t<value_type>;
-  using vec_vars_t = aks::vec_t<var_t>;
+  using tape_context_t = aks::tape_context<value_type>;
+  using vec_var_t = aks::vec_t<var_t>;
 };
 
 using ag_d = autograd_traits<double_t>;
@@ -85,55 +87,62 @@ void test_01() {
   const ag_d::var_t x = t.new_variable(3.0);
   ag_d::var_t y = t.new_variable(5.0);
 
-  ag_d::var_t f = (x * x * x * x * x * x * x * x);
+  {
+    ag_d::tape_context_t ctxt(t);
 
-  t.push_state();
-  AKS_CHECK_VARIABLE(x, 3);
-  AKS_CHECK_VARIABLE(y, 5);
-  AKS_CHECK_VARIABLE(f, 6561);
-  vec_t<ag_d::value_t> expected = {17496,  40824,  81648, 136080, 181440,
-                                   181440, 120960, 40320, 0};
+    ag_d::var_t f = (x * x * x * x * x * x * x * x);
+    AKS_CHECK_VARIABLE(x, 3);
+    AKS_CHECK_VARIABLE(y, 5);
+    AKS_CHECK_VARIABLE(f, 6561);
+    vec_t<ag_d::value_t> expected = {17496,  40824,  81648, 136080, 181440,
+                                     181440, 120960, 40320, 0};
 
-  for (int i = 0; i < 9; ++i) {
-    t.zero_grad();
-    backward(f);
-    f = grad(x);
-    AKS_CHECK_VARIABLE(f, expected[i]);
+    for (int i = 0; i < 9; ++i) {
+      t.zero_grad();
+      backward(f);
+      f = grad(x);
+      AKS_CHECK_VARIABLE(f, expected[i]);
+    }
+    AKS_CHECK_PRINT(t.nodes_.size(), t.nodes_.size(), 1175495);
+    AKS_CHECK_PRINT(t.grads_.size(), t.grads_.size(), 346633);
   }
-  AKS_CHECK_PRINT(t.nodes_.size(), t.nodes_.size(), 1175495);
-  AKS_CHECK_PRINT(t.grads_.size(), t.grads_.size(), 346633);
-  t.pop_state();
 
-  f = (y * y) * (x * x) * (y * y * y);
+  {
+    ag_d::tape_context_t ctxt(t);
+    ag_d::var_t f = (y * y) * (x * x) * (y * y * y);
 
-  expected = {28125, 22500, 13500, 5400, 1080, 0, 0, 0, 0};
-  AKS_CHECK_VARIABLE(f, 28125);
-  t.push_state();
-  for (int i = 0; i < 9; ++i) {
-    t.zero_grad();
-    backward(f);
-    f = grad(y);
-    AKS_CHECK_VARIABLE(f, expected[i]);
+    vec_t<ag_d::value_t> expected = {28125, 22500, 13500, 5400, 1080,
+                                     0,     0,     0,     0};
+    AKS_CHECK_VARIABLE(f, 28125);
+    for (int i = 0; i < 9; ++i) {
+      t.zero_grad();
+      backward(f);
+      f = grad(y);
+      AKS_CHECK_VARIABLE(f, expected[i]);
+    }
+    AKS_CHECK_PRINT(t.nodes_.size(), t.nodes_.size(), 988250);
+    AKS_CHECK_PRINT(t.grads_.size(), t.grads_.size(), 290736);
   }
-  AKS_CHECK_PRINT(t.nodes_.size(), t.nodes_.size(), 1332723);
-  AKS_CHECK_PRINT(t.grads_.size(), t.grads_.size(), 390635);
-  t.pop_state();
 
-  f = (x * x) / (y * y);
+  {
+    ag_d::tape_context_t ctxt(t);
 
-  expected = {-0.144, 0.0864, -0.06912, 0.06912, -0.0829439999999999};
-  AKS_CHECK_VARIABLE(f, 0.36);
-  t.push_state();
-  for (int i = 0; i < 5; ++i) {
-    t.zero_grad();
-    backward(f);
-    f = grad(y);
-    AKS_CHECK_VARIABLE(f, expected[i]);
+    ag_d::var_t f = (x * x) / (y * y);
+    vec_t<ag_d::value_t> expected = {-0.144, 0.0864, -0.06912, 0.06912,
+                                     -0.0829439999999999};
+    AKS_CHECK_VARIABLE(f, 0.36);
+
+    for (int i = 0; i < 5; ++i) {
+      t.zero_grad();
+      backward(f);
+      f = grad(y);
+      AKS_CHECK_VARIABLE(f, expected[i]);
+    }
+    AKS_CHECK_PRINT(t.nodes_.size(), t.nodes_.size(), 5384);
+    AKS_CHECK_PRINT(t.grads_.size(), t.grads_.size(), 1340);
   }
-  AKS_CHECK_PRINT(t.nodes_.size(), t.nodes_.size(), 14507);
-  AKS_CHECK_PRINT(t.grads_.size(), t.grads_.size(), 3783);
-  t.pop_state();
-  AKS_CHECK_PRINT(t.nodes_.size(), t.nodes_.size(), 18);
+
+  AKS_CHECK_PRINT(t.nodes_.size(), t.nodes_.size(), 2);
   AKS_CHECK_PRINT(t.grads_.size(), t.grads_.size(), 0);
 }
 
@@ -940,7 +949,7 @@ void test_20() {
   AKS_CHECK_VARIABLE(z, 5.0);
 
   auto DIFF = [&](size_t I, size_t J, size_t K) {
-    t.push_state();
+    ag_d::tape_context_t context(t);
     ag_d::var_t f = (x * y * z) ^ ag_d::value_t(4.0);
 
     for (size_t i = 0; i < I; ++i) {
@@ -959,7 +968,6 @@ void test_20() {
       f = grad(z);
     }
     ag_d::value_t result = f.value();
-    t.pop_state();
     return result;
   };
 
@@ -1044,7 +1052,7 @@ void test_21() {
   AKS_CHECK_VARIABLE(z, 5.0);
 
   auto DIFF = [&](size_t I, size_t J, size_t K) {
-    t.push_state();
+    ag_d::tape_context_t ctx(t);
     ag_d::var_t f = ((z + (x * y)) ^ ag_d::value_t(4.0)) /
                     ((z - ((x * y) ^ ag_d::value_t(4.0))));
     for (size_t k = 0; k < K; ++k) {
@@ -1064,7 +1072,6 @@ void test_21() {
     }
 
     ag_d::value_t result = f.value();
-    t.pop_state();
     return result;
   };
 
@@ -1112,7 +1119,7 @@ void test_22() {
   AKS_CHECK_VARIABLE(z, 5.0);
 
   auto DIFF = [&](size_t I, size_t J, size_t K) {
-    t.push_state();
+    ag_d::tape_context_t context(t);
     ag_d::var_t f =
         (z * (sin(x + y) + cos(x - y))) / (log(x) * tanh(y) * exp(z));
     for (size_t k = 0; k < K; ++k) {
@@ -1132,7 +1139,6 @@ void test_22() {
     }
 
     ag_d::value_t result = f.value();
-    t.pop_state();
     return result;
   };
 
@@ -1180,7 +1186,7 @@ void test_23() {
   AKS_CHECK_VARIABLE(z, 5.0);
 
   auto DIFF = [&](size_t I, size_t J, size_t K) {
-    t.push_state();
+    ag_d::tape_context_t context(t);
     ag_d::var_t f =
         (((x * y) ^ ag_d::value_t(2.0)) + ((x ^ z) - (y ^ z))) / (sqrt(z - x));
     for (size_t k = 0; k < K; ++k) {
@@ -1200,7 +1206,6 @@ void test_23() {
     }
 
     ag_d::value_t result = f.value();
-    t.pop_state();
     return result;
   };
 
@@ -2071,15 +2076,15 @@ struct neuron {
     params = parameters_impl();
   }
 
-  void forward(ag_mlp::vec_vars_t const &xs, ag_mlp::var_t &out) {
+  void forward(ag_mlp::vec_var_t const &xs, ag_mlp::var_t &out) {
     ag_mlp::var_t r = b + dot(ws, xs);
     out = (nonlinearity ? relu(r) : r);
   }
 
-  ag_mlp::vec_vars_t const &parameters() { return params; }
+  ag_mlp::vec_var_t const &parameters() { return params; }
 
-  ag_mlp::vec_vars_t parameters_impl() {
-    ag_mlp::vec_vars_t ret;
+  ag_mlp::vec_var_t parameters_impl() {
+    ag_mlp::vec_var_t ret;
     ret.reserve(ws.size() + 1);
     ret.push_back(b);
     ret.insert(ret.end(), ws.begin(), ws.end());
@@ -2089,8 +2094,8 @@ struct neuron {
   ag_mlp::tape_t *tape;
   bool nonlinearity = true;
   ag_mlp::var_t b;
-  ag_mlp::vec_vars_t ws;
-  ag_mlp::vec_vars_t params;
+  ag_mlp::vec_var_t ws;
+  ag_mlp::vec_var_t params;
 };
 
 struct layer_linear {
@@ -2102,7 +2107,7 @@ struct layer_linear {
     params = parameters_impl();
   }
 
-  void forward(ag_mlp::vec_vars_t const &x, ag_mlp::vec_vars_t &out) {
+  void forward(ag_mlp::vec_var_t const &x, ag_mlp::vec_var_t &out) {
     if (out.size() != neurons.size()) {
       out.resize(neurons.size());
     }
@@ -2111,20 +2116,20 @@ struct layer_linear {
     }
   }
 
-  ag_mlp::vec_vars_t const &parameters() { return params; }
+  ag_mlp::vec_var_t const &parameters() { return params; }
 
 private:
-  ag_mlp::vec_vars_t parameters_impl() {
-    ag_mlp::vec_vars_t ret;
+  ag_mlp::vec_var_t parameters_impl() {
+    ag_mlp::vec_var_t ret;
     for (auto &n : neurons) {
-      ag_mlp::vec_vars_t const &p = n.parameters();
+      ag_mlp::vec_var_t const &p = n.parameters();
       ret.insert(ret.end(), p.begin(), p.end());
     }
     return ret;
   }
 
   aks::vec_t<neuron> neurons;
-  ag_mlp::vec_vars_t params;
+  ag_mlp::vec_var_t params;
 };
 
 struct mlp {
@@ -2142,8 +2147,8 @@ struct mlp {
     params = parameters_impl();
   }
 
-  void forward(ag_mlp::vec_vars_t const &x, ag_mlp::vec_vars_t &out,
-               ag_mlp::vec_vars_t &buffer) {
+  void forward(ag_mlp::vec_var_t const &x, ag_mlp::vec_var_t &out,
+               ag_mlp::vec_var_t &buffer) {
     out.clear();
     out.insert(out.end(), x.begin(), x.end());
     for (auto &layer : layers) {
@@ -2154,10 +2159,10 @@ struct mlp {
     // out has the result
   }
 
-  ag_mlp::vec_vars_t const &parameters() { return params; }
+  ag_mlp::vec_var_t const &parameters() { return params; }
 
-  ag_mlp::vec_vars_t parameters_impl() {
-    ag_mlp::vec_vars_t ret;
+  ag_mlp::vec_var_t parameters_impl() {
+    ag_mlp::vec_var_t ret;
     for (auto &l : layers) {
       ret.insert(ret.end(), l.parameters().begin(), l.parameters().end());
     }
@@ -2166,7 +2171,7 @@ struct mlp {
 
   ag_mlp::tape_t tape;
   aks::vec_t<layer_linear> layers;
-  ag_mlp::vec_vars_t params;
+  ag_mlp::vec_var_t params;
   ag_mlp::var_t last_neural_node;
   std::mt19937_64 rng;
 };
@@ -2183,10 +2188,10 @@ void test_35() {
 
   mlp nn(1, {1, 1});
 
-  ag_mlp::vec_vars_t out(1), buffer(1);
-  ag_mlp::vec_vars_t x(1);
+  ag_mlp::vec_var_t out(1), buffer(1);
+  ag_mlp::vec_var_t x(1);
 
-  ag_mlp::vec_vars_t params = nn.parameters();
+  ag_mlp::vec_var_t params = nn.parameters();
 
   params[0].update_in_place(0.04);
   params[1].update_in_place(0.06);
@@ -2236,10 +2241,10 @@ void test_36() {
 
   mlp nn(3, {2, 1}, 55220);
 
-  auto loss_func = [&](ag_mlp::vec_vars_t const &y,
-                       ag_mlp::vec_vars_t const &pred) {
+  auto loss_func = [&](ag_mlp::vec_var_t const &y,
+                       ag_mlp::vec_var_t const &pred) {
     ag_mlp::var_t two = nn.tape.new_variable(2.0);
-    ag_mlp::vec_vars_t each(y.size());
+    ag_mlp::vec_var_t each(y.size());
 
     for (size_t i = 0; i < y.size(); ++i) {
       each[i] = (pred[i] - y[i]) ^ two;
@@ -2247,14 +2252,14 @@ void test_36() {
     return mean(each);
   };
 
-  ag_mlp::vec_vars_t ys =
+  ag_mlp::vec_var_t ys =
       zipped_op([&](double_t x) { return nn.tape.new_variable(x); }, Ys);
-  ag_mlp::vec_vars_t buffer, pred;
-  ag_mlp::vec_vars_t x;
+  ag_mlp::vec_var_t buffer, pred;
+  ag_mlp::vec_var_t x;
   ag_mlp::var_t loss;
-  ag_mlp::vec_vars_t preds;
+  ag_mlp::vec_var_t preds;
 
-  ag_mlp::vec_vars_t params = nn.parameters();
+  ag_mlp::vec_var_t params = nn.parameters();
 
   while (count++ < max_iterations) {
     if (!loss.is_alive()) {
@@ -2292,9 +2297,31 @@ void test_36() {
   AKS_CHECK_VALUE(losses.back(), 0.0);
 }
 
+void test_37() {
+  std::cout << "\ntest_37" << std::endl;
+
+  using namespace aks;
+
+  ag_d::tape_t tape;
+
+  ag_d::var_t x = tape.new_variable(2.0);
+  ag_d::var_t y = tape.new_variable(3.0);
+
+  ag_d::var_t z = ((x * y) + (x * y));
+
+  backward(z);
+
+  ag_d::var_t dfdx = grad(x);
+  ag_d::var_t dfdy = grad(y);
+
+  AKS_CHECK_VALUE(dfdx.value(), 6.0);
+  AKS_CHECK_VALUE(dfdy.value(), 4.0);
+}
+
 } // namespace
 
 int main_tests() {
+  test_37();
   test_36();
   test_35();
   test_34();

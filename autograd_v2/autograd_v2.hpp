@@ -419,6 +419,12 @@ template <typename real_t> struct tape_t {
   stack_t<std::tuple<idx_t, idx_t>> saved_state_;
 };
 
+template <typename real_t> struct tape_context {
+  tape_context(tape_t<real_t> &tape) : tape_(tape) { tape_.push_state(); }
+  ~tape_context() { tape_.pop_state(); }
+  tape_t<real_t> &tape_;
+};
+
 template <typename real_t> auto &grad_unchecked(var_t<real_t> &n) {
   return n.t().grads_[n.n().idx_];
 }
