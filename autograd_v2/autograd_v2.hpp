@@ -1325,7 +1325,6 @@ template <typename real_t> void backward(var_t<real_t> v) {
     grad_unchecked(v) = v.t().new_variable(1.0);
   }
 
-  set_t<idx_t> all_idxs;
   stack_t<node<real_t> *> stk;
   set_t<idx_t> seen;
 
@@ -1335,9 +1334,7 @@ template <typename real_t> void backward(var_t<real_t> v) {
     node<real_t> *n = stk.top();
     stk.pop();
     if (!seen.contains(n->idx_)) {
-      if (!all_idxs.contains(n->idx_)) {
-        all_idxs.insert(n->idx_);
-      }
+      seen.insert(n->idx_);
       for (auto &l : n->ls_) {
         stk.push(l);
       }
@@ -1347,7 +1344,7 @@ template <typename real_t> void backward(var_t<real_t> v) {
     }
   }
 
-  vec_t<idx_t> idxs(all_idxs.begin(), all_idxs.end());
+  vec_t<idx_t> idxs(seen.begin(), seen.end());
 
   std::sort(idxs.begin(), idxs.end(), std::greater<idx_t>());
 
