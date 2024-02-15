@@ -103,8 +103,8 @@ void test_01() {
       f = grad(x);
       AKS_CHECK_VARIABLE(f, expected[i]);
     }
-    AKS_CHECK_PRINT(t.nodes_.size(), t.nodes_.size(), 1175495);
-    AKS_CHECK_PRINT(t.grads_.size(), t.grads_.size(), 346633);
+    AKS_CHECK_PRINT(t.nodes_.size(), t.nodes_.size(), 44436);
+    AKS_CHECK_PRINT(t.grads_.size(), t.grads_.size(), 7234);
   }
 
   {
@@ -120,8 +120,8 @@ void test_01() {
       f = grad(y);
       AKS_CHECK_VARIABLE(f, expected[i]);
     }
-    AKS_CHECK_PRINT(t.nodes_.size(), t.nodes_.size(), 988250);
-    AKS_CHECK_PRINT(t.grads_.size(), t.grads_.size(), 290736);
+    AKS_CHECK_PRINT(t.nodes_.size(), t.nodes_.size(), 2473);
+    AKS_CHECK_PRINT(t.grads_.size(), t.grads_.size(), 2);
   }
 
   {
@@ -138,8 +138,8 @@ void test_01() {
       f = grad(y);
       AKS_CHECK_VARIABLE(f, expected[i]);
     }
-    AKS_CHECK_PRINT(t.nodes_.size(), t.nodes_.size(), 5384);
-    AKS_CHECK_PRINT(t.grads_.size(), t.grads_.size(), 1340);
+    AKS_CHECK_PRINT(t.nodes_.size(), t.nodes_.size(), 1046);
+    AKS_CHECK_PRINT(t.grads_.size(), t.grads_.size(), 235);
   }
 
   AKS_CHECK_PRINT(t.nodes_.size(), t.nodes_.size(), 2);
@@ -168,8 +168,8 @@ void test_02() {
     f = grad(x);
     AKS_CHECK_VARIABLE(f, expected[i]);
   }
-  AKS_CHECK_PRINT(t.nodes_.size(), t.nodes_.size(), 456774);
-  AKS_CHECK_PRINT(t.grads_.size(), t.grads_.size(), 126296);
+  AKS_CHECK_PRINT(t.nodes_.size(), t.nodes_.size(), 336);
+  AKS_CHECK_PRINT(t.grads_.size(), t.grads_.size(), 43);
   t.pop_state();
 }
 
@@ -196,8 +196,8 @@ void test_02_f() {
     f = grad(x);
     AKS_CHECK_VARIABLE(f, expected[i]);
   }
-  AKS_CHECK_PRINT(t.nodes_.size(), t.nodes_.size(), 456774);
-  AKS_CHECK_PRINT(t.grads_.size(), t.grads_.size(), 126296);
+  AKS_CHECK_PRINT(t.nodes_.size(), t.nodes_.size(), 336);
+  AKS_CHECK_PRINT(t.grads_.size(), t.grads_.size(), 43);
   t.pop_state();
 }
 
@@ -221,8 +221,8 @@ void test_03() {
     f = grad(x);
     AKS_CHECK_VARIABLE(f, expected[i]);
   }
-  AKS_CHECK_PRINT(t.nodes_.size(), t.nodes_.size(), 456774);
-  AKS_CHECK_PRINT(t.grads_.size(), t.grads_.size(), 126296);
+  AKS_CHECK_PRINT(t.nodes_.size(), t.nodes_.size(), 336);
+  AKS_CHECK_PRINT(t.grads_.size(), t.grads_.size(), 43);
   t.pop_state();
 }
 
@@ -245,8 +245,8 @@ void test_04() {
     f = grad(x);
     AKS_CHECK_VARIABLE(f, expected[i]);
   }
-  AKS_CHECK_PRINT(t.nodes_.size(), t.nodes_.size(), 204);
-  AKS_CHECK_PRINT(t.grads_.size(), t.grads_.size(), 46);
+  AKS_CHECK_PRINT(t.nodes_.size(), t.nodes_.size(), 192);
+  AKS_CHECK_PRINT(t.grads_.size(), t.grads_.size(), 44);
   t.pop_state();
 }
 
@@ -272,8 +272,8 @@ void test_05() {
     f = grad(x);
     AKS_CHECK_VARIABLE(f, expected[i]);
   }
-  AKS_CHECK_PRINT(t.nodes_.size(), t.nodes_.size(), 132768);
-  AKS_CHECK_PRINT(t.grads_.size(), t.grads_.size(), 37958);
+  AKS_CHECK_PRINT(t.nodes_.size(), t.nodes_.size(), 22517);
+  AKS_CHECK_PRINT(t.grads_.size(), t.grads_.size(), 5598);
   t.pop_state();
 }
 
@@ -297,8 +297,8 @@ void test_06_01() {
     f = grad(x);
     AKS_CHECK_VARIABLE(f, expected[i]);
   }
-  AKS_CHECK_PRINT(t.nodes_.size(), t.nodes_.size(), 140178);
-  AKS_CHECK_PRINT(t.grads_.size(), t.grads_.size(), 39214);
+  AKS_CHECK_PRINT(t.nodes_.size(), t.nodes_.size(), 141);
+  AKS_CHECK_PRINT(t.grads_.size(), t.grads_.size(), 26);
   t.pop_state();
 }
 
@@ -322,8 +322,8 @@ void test_06_02() {
     f = grad(x);
     AKS_CHECK_VARIABLE(f, expected[i]);
   }
-  AKS_CHECK_PRINT(t.nodes_.size(), t.nodes_.size(), 183338);
-  AKS_CHECK_PRINT(t.grads_.size(), t.grads_.size(), 51500);
+  AKS_CHECK_PRINT(t.nodes_.size(), t.nodes_.size(), 151);
+  AKS_CHECK_PRINT(t.grads_.size(), t.grads_.size(), 26);
   t.pop_state();
 }
 
@@ -353,8 +353,8 @@ void test_07() {
     // AKS_PRINT(f);
     AKS_CHECK_VARIABLE(f, expected[i]);
   }
-  AKS_CHECK_PRINT(t.nodes_.size(), t.nodes_.size(), 3728582);
-  AKS_CHECK_PRINT(t.grads_.size(), t.grads_.size(), 1038086);
+  AKS_CHECK_PRINT(t.nodes_.size(), t.nodes_.size(), 1160802);
+  AKS_CHECK_PRINT(t.grads_.size(), t.grads_.size(), 281826);
   t.pop_state();
 }
 
@@ -384,8 +384,8 @@ void test_08() {
     f = grad(x);
     AKS_CHECK_VARIABLE(f, expected[i]);
   }
-  AKS_CHECK_PRINT(t.nodes_.size(), t.nodes_.size(), 3464018);
-  AKS_CHECK_PRINT(t.grads_.size(), t.grads_.size(), 970308);
+  AKS_CHECK_PRINT(t.nodes_.size(), t.nodes_.size(), 71502);
+  AKS_CHECK_PRINT(t.grads_.size(), t.grads_.size(), 15539);
   t.pop_state();
 }
 
@@ -416,8 +416,8 @@ void test_09() {
     f = grad(x);
     AKS_CHECK_VARIABLE(f, expected[i]);
   }
-  AKS_CHECK_PRINT(t.nodes_.size(), t.nodes_.size(), 1994523);
-  AKS_CHECK_PRINT(t.grads_.size(), t.grads_.size(), 539981);
+  AKS_CHECK_PRINT(t.nodes_.size(), t.nodes_.size(), 85833);
+  AKS_CHECK_PRINT(t.grads_.size(), t.grads_.size(), 20476);
   t.pop_state();
 }
 
@@ -447,8 +447,8 @@ void test_10() {
     f = grad(x);
     AKS_CHECK_VARIABLE(f, expected[i]);
   }
-  AKS_CHECK_PRINT(t.nodes_.size(), t.nodes_.size(), 4041640);
-  AKS_CHECK_PRINT(t.grads_.size(), t.grads_.size(), 1116278);
+  AKS_CHECK_PRINT(t.nodes_.size(), t.nodes_.size(), 71521);
+  AKS_CHECK_PRINT(t.grads_.size(), t.grads_.size(), 15540);
   t.pop_state();
 }
 
@@ -471,8 +471,8 @@ void test_11() {
     f = grad(x);
     AKS_CHECK_VARIABLE(f, expected[i]);
   }
-  AKS_CHECK_PRINT(t.nodes_.size(), t.nodes_.size(), 71);
-  AKS_CHECK_PRINT(t.grads_.size(), t.grads_.size(), 25);
+  AKS_CHECK_PRINT(t.nodes_.size(), t.nodes_.size(), 21);
+  AKS_CHECK_PRINT(t.grads_.size(), t.grads_.size(), 2);
   t.pop_state();
 }
 
@@ -495,8 +495,8 @@ void test_12() {
     f = grad(x);
     AKS_CHECK_VARIABLE(f, expected[i]);
   }
-  AKS_CHECK_PRINT(t.nodes_.size(), t.nodes_.size(), 71);
-  AKS_CHECK_PRINT(t.grads_.size(), t.grads_.size(), 25);
+  AKS_CHECK_PRINT(t.nodes_.size(), t.nodes_.size(), 21);
+  AKS_CHECK_PRINT(t.grads_.size(), t.grads_.size(), 2);
   t.pop_state();
 }
 
@@ -528,8 +528,8 @@ void test_13() {
     f = grad(x);
     AKS_CHECK_VARIABLE(f, expected[i]);
   }
-  AKS_CHECK_PRINT(t.nodes_.size(), t.nodes_.size(), 4209458);
-  AKS_CHECK_PRINT(t.grads_.size(), t.grads_.size(), 1165742);
+  AKS_CHECK_PRINT(t.nodes_.size(), t.nodes_.size(), 261150);
+  AKS_CHECK_PRINT(t.grads_.size(), t.grads_.size(), 63553);
   t.pop_state();
 }
 
@@ -560,8 +560,8 @@ void test_14() {
     f = grad(x);
     AKS_CHECK_VARIABLE(f, expected[i]);
   }
-  AKS_CHECK_PRINT(t.nodes_.size(), t.nodes_.size(), 1014346);
-  AKS_CHECK_PRINT(t.grads_.size(), t.grads_.size(), 268612);
+  AKS_CHECK_PRINT(t.nodes_.size(), t.nodes_.size(), 91608);
+  AKS_CHECK_PRINT(t.grads_.size(), t.grads_.size(), 21236);
   t.pop_state();
 }
 
@@ -599,8 +599,8 @@ void test_15() {
       f = grad(x);
       AKS_CHECK_VARIABLE(f, expected[i]);
     }
-    AKS_CHECK_PRINT(t.nodes_.size(), t.nodes_.size(), 1555964);
-    AKS_CHECK_PRINT(t.grads_.size(), t.grads_.size(), 425346);
+    AKS_CHECK_PRINT(t.nodes_.size(), t.nodes_.size(), 315011);
+    AKS_CHECK_PRINT(t.grads_.size(), t.grads_.size(), 75043);
     t.pop_state();
   }
   {
@@ -614,14 +614,14 @@ void test_15() {
     vec_t<ag_d::value_t> expected = {88164.61349317656, 275673.9023954568,
                                      868833.1020929292, 2754733.9246692426};
 
-    for (int i = 0; i < 2; ++i) {
+    for (int i = 0; i < 4; ++i) {
       t.zero_grad();
       backward(f);
       f = grad(y);
       AKS_CHECK_VARIABLE(f, expected[i]);
     }
-    AKS_CHECK_PRINT(t.nodes_.size(), t.nodes_.size(), 431);
-    AKS_CHECK_PRINT(t.grads_.size(), t.grads_.size(), 114);
+    AKS_CHECK_PRINT(t.nodes_.size(), t.nodes_.size(), 2516);
+    AKS_CHECK_PRINT(t.grads_.size(), t.grads_.size(), 551);
     t.pop_state();
   }
   {
@@ -636,14 +636,14 @@ void test_15() {
                                      7309.719265308730, 3064.054319595382,
                                      1006.296282742556};
 
-    for (int i = 0; i < 2; ++i) {
+    for (int i = 0; i < 5; ++i) {
       t.zero_grad();
       backward(f);
       f = grad(z);
       AKS_CHECK_VARIABLE(f, expected[i]);
     }
-    AKS_CHECK_PRINT(t.nodes_.size(), t.nodes_.size(), 437);
-    AKS_CHECK_PRINT(t.grads_.size(), t.grads_.size(), 114);
+    AKS_CHECK_PRINT(t.nodes_.size(), t.nodes_.size(), 3101);
+    AKS_CHECK_PRINT(t.grads_.size(), t.grads_.size(), 615);
     t.pop_state();
   }
 }
@@ -681,14 +681,14 @@ void test_16() {
         4096000,     5734400,     6881280,     6881280, 5505024,
         3303014.400, 1321205.760, 264241.1520, 0,       0};
 
-    for (int i = 0; i < 4; ++i) {
+    for (int i = 0; i < 8; ++i) {
       t.zero_grad();
       backward(f);
       f = grad(x);
       AKS_CHECK_VARIABLE(f, expected[i]);
     }
-    AKS_CHECK_PRINT(t.nodes_.size(), t.nodes_.size(), 1993);
-    AKS_CHECK_PRINT(t.grads_.size(), t.grads_.size(), 495);
+    AKS_CHECK_PRINT(t.nodes_.size(), t.nodes_.size(), 16148);
+    AKS_CHECK_PRINT(t.grads_.size(), t.grads_.size(), 3368);
     t.pop_state();
   }
 
@@ -706,14 +706,14 @@ void test_16() {
         4096000,     5734400,     6881280,     6881280, 5505024,
         3303014.400, 1321205.760, 264241.1520, 0,       0};
 
-    for (int i = 0; i < 4; ++i) {
+    for (int i = 0; i < 10; ++i) {
       t.zero_grad();
       backward(f);
       f = grad(y);
       AKS_CHECK_VARIABLE(f, expected[i]);
     }
-    AKS_CHECK_PRINT(t.nodes_.size(), t.nodes_.size(), 2038);
-    AKS_CHECK_PRINT(t.grads_.size(), t.grads_.size(), 508);
+    AKS_CHECK_PRINT(t.nodes_.size(), t.nodes_.size(), 25417);
+    AKS_CHECK_PRINT(t.grads_.size(), t.grads_.size(), 2);
     t.pop_state();
   }
 
@@ -731,14 +731,14 @@ void test_16() {
                                      16800000, 12600000, 6300000,  1575000,
                                      0,        0};
 
-    for (int i = 0; i < 4; ++i) {
+    for (int i = 0; i < 10; ++i) {
       t.zero_grad();
       backward(f);
       f = grad(z);
       AKS_CHECK_VARIABLE(f, expected[i]);
     }
-    AKS_CHECK_PRINT(t.nodes_.size(), t.nodes_.size(), 1820);
-    AKS_CHECK_PRINT(t.grads_.size(), t.grads_.size(), 448);
+    AKS_CHECK_PRINT(t.nodes_.size(), t.nodes_.size(), 25277);
+    AKS_CHECK_PRINT(t.grads_.size(), t.grads_.size(), 2);
     t.pop_state();
   }
 }
@@ -789,8 +789,8 @@ void test_17() {
       // AKS_PRINT(f);
       AKS_CHECK_VARIABLE(f, expected[i]);
     }
-    AKS_CHECK_PRINT(t.nodes_.size(), t.nodes_.size(), 125917);
-    AKS_CHECK_PRINT(t.grads_.size(), t.grads_.size(), 34521);
+    AKS_CHECK_PRINT(t.nodes_.size(), t.nodes_.size(), 25156);
+    AKS_CHECK_PRINT(t.grads_.size(), t.grads_.size(), 5718);
     t.pop_state();
   }
 
@@ -815,8 +815,8 @@ void test_17() {
       f = grad(y);
       AKS_CHECK_VARIABLE(f, expected[i]);
     }
-    AKS_CHECK_PRINT(t.nodes_.size(), t.nodes_.size(), 127310);
-    AKS_CHECK_PRINT(t.grads_.size(), t.grads_.size(), 34974);
+    AKS_CHECK_PRINT(t.nodes_.size(), t.nodes_.size(), 25072);
+    AKS_CHECK_PRINT(t.grads_.size(), t.grads_.size(), 5706);
     t.pop_state();
   }
 
@@ -841,8 +841,8 @@ void test_17() {
       f = grad(z);
       AKS_CHECK_VARIABLE(f, expected[i]);
     }
-    AKS_CHECK_PRINT(t.nodes_.size(), t.nodes_.size(), 119756);
-    AKS_CHECK_PRINT(t.grads_.size(), t.grads_.size(), 32718);
+    AKS_CHECK_PRINT(t.nodes_.size(), t.nodes_.size(), 25168);
+    AKS_CHECK_PRINT(t.grads_.size(), t.grads_.size(), 5718);
     t.pop_state();
   }
 }
@@ -873,8 +873,8 @@ void test_18() {
     // AKS_PRINT(f);
     AKS_CHECK_VARIABLE(f, expected[i]);
   }
-  AKS_CHECK_PRINT(t.nodes_.size(), t.nodes_.size(), 1127980);
-  AKS_CHECK_PRINT(t.grads_.size(), t.grads_.size(), 307884);
+  AKS_CHECK_PRINT(t.nodes_.size(), t.nodes_.size(), 379172);
+  AKS_CHECK_PRINT(t.grads_.size(), t.grads_.size(), 90930);
   t.pop_state();
 }
 
@@ -1479,8 +1479,8 @@ void test_25() {
   ag_d::var_t g = gsum(xs);
   AKS_CHECK_VARIABLE(g, 30.0);
 
-  AKS_CHECK_PRINT(t.nodes_.size(), t.nodes_.size(), 62);
-  AKS_CHECK_PRINT(t.grads_.size(), t.grads_.size(), 15);
+  AKS_CHECK_PRINT(t.nodes_.size(), t.nodes_.size(), 24);
+  AKS_CHECK_PRINT(t.grads_.size(), t.grads_.size(), 5);
 
   // backward(g);
   // AKS_CHECK_VARIABLE(grad(xs[0]), 15.0);
@@ -1492,8 +1492,8 @@ void test_25() {
     ag_d::var_t mx = max(xs);
     AKS_CHECK_VARIABLE(mx, 5.0);
 
-    AKS_CHECK_PRINT(t.nodes_.size(), t.nodes_.size(), 62);
-    AKS_CHECK_PRINT(t.grads_.size(), t.grads_.size(), 15);
+    AKS_CHECK_PRINT(t.nodes_.size(), t.nodes_.size(), 24);
+    AKS_CHECK_PRINT(t.grads_.size(), t.grads_.size(), 5);
 
     // backward(mx);
     // AKS_CHECK_VARIABLE(grad(xs[0]), 0.0);
@@ -1501,8 +1501,8 @@ void test_25() {
     ag_d::var_t mn = min(xs);
     AKS_CHECK_VARIABLE(mn, 2.0);
 
-    AKS_CHECK_PRINT(t.nodes_.size(), t.nodes_.size(), 62);
-    AKS_CHECK_PRINT(t.grads_.size(), t.grads_.size(), 15);
+    AKS_CHECK_PRINT(t.nodes_.size(), t.nodes_.size(), 24);
+    AKS_CHECK_PRINT(t.grads_.size(), t.grads_.size(), 5);
 
     // backward(mn);
     // AKS_CHECK_VARIABLE(grad(xs[0]), 1.0);
@@ -1510,8 +1510,8 @@ void test_25() {
     ag_d::var_t mm = mean(ys);
     AKS_CHECK_VARIABLE(mm, 10.3333333);
 
-    AKS_CHECK_PRINT(t.nodes_.size(), t.nodes_.size(), 65);
-    AKS_CHECK_PRINT(t.grads_.size(), t.grads_.size(), 15);
+    AKS_CHECK_PRINT(t.nodes_.size(), t.nodes_.size(), 27);
+    AKS_CHECK_PRINT(t.grads_.size(), t.grads_.size(), 5);
 
     // backward(mm);
     // AKS_CHECK_VARIABLE(grad(ys[0]), 1.0);
@@ -1519,8 +1519,8 @@ void test_25() {
     ag_d::var_t gm = gmean(xs);
     AKS_CHECK_VARIABLE(gm, 10.0);
 
-    AKS_CHECK_PRINT(t.nodes_.size(), t.nodes_.size(), 68);
-    AKS_CHECK_PRINT(t.grads_.size(), t.grads_.size(), 15);
+    AKS_CHECK_PRINT(t.nodes_.size(), t.nodes_.size(), 30);
+    AKS_CHECK_PRINT(t.grads_.size(), t.grads_.size(), 5);
 
     // backward(gm);
     // AKS_CHECK_VARIABLE(grad(xs[0]), 1.0);
@@ -1597,8 +1597,8 @@ void test_27() {
       AKS_CHECK_PRINT(f.value()[0], f.value()[0], expected[i]);
       AKS_CHECK_PRINT(f.value()[1], f.value()[1], expected[i]);
     }
-    AKS_CHECK_PRINT(t.nodes_.size(), t.nodes_.size(), 140178);
-    AKS_CHECK_PRINT(t.grads_.size(), t.grads_.size(), 39214);
+    AKS_CHECK_PRINT(t.nodes_.size(), t.nodes_.size(), 141);
+    AKS_CHECK_PRINT(t.grads_.size(), t.grads_.size(), 26);
 
     // AKS_PRINT(as_dot(t));
 
