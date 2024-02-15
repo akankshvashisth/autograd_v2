@@ -1,5 +1,6 @@
 #pragma once
 
+#include <algorithm>
 #include <array>
 #include <cassert>
 #include <cmath>
@@ -8,12 +9,14 @@
 #include <iostream>
 #include <limits>
 #include <numbers>
+#include <set>
 #include <sstream>
 #include <stack>
 #include <string>
 #include <tuple>
 #include <type_traits>
 #include <unordered_map>
+#include <unordered_set>
 #include <variant>
 #include <vector>
 
@@ -275,6 +278,8 @@ template <typename T> using vec_t = std::vector<T>;
 template <typename T> using deq_t = std::deque<T>;
 template <typename T, size_t N> using arr_t = std::array<T, N>;
 template <typename T> using stack_t = std::stack<T, std::vector<T>>;
+template <typename K, typename V> using map_t = std::unordered_map<K, V>;
+template <typename T> using set_t = std::unordered_set<T>;
 using idx_t = size_t;
 constexpr idx_t const sntnl_idx = std::numeric_limits<idx_t>::max();
 
@@ -375,6 +380,7 @@ template <typename real_t> struct node {
 template <typename real_t> struct tape_t {
   using value_type = real_t;
   using node_type = node<value_type>;
+  using grads_t = map_t<idx_t, var_t<value_type>>;
 
   node_type *new_node() {
     auto ret = &(nodes_.emplace_back());
@@ -388,21 +394,23 @@ template <typename real_t> struct tape_t {
     return {this, n};
   }
 
-  void fill_grads() { grads_.resize(nodes_.size()); }
+  void fill_grads() {
+    // grads_.resize(nodes_.size());
+  }
 
   void zero_grad() { grads_.clear(); }
 
-  void keep_only(std::tuple<idx_t, idx_t> const &ds) {
+  void keep_only(std::tuple<idx_t, grads_t> const &ds) {
     nodes_.resize(std::get<0>(ds));
-    grads_.resize(std::get<1>(ds));
+    grads_ = std::get<1>(ds);
   }
 
   void reset() {
-    keep_only({0, 0});
-    stack_t<std::tuple<idx_t, idx_t>> clear;
+    keep_only({0, grads_t{}});
+    stack_t<std::tuple<idx_t, grads_t>> clear;
     saved_state_.swap(clear);
   }
-  void push_state() { saved_state_.push({nodes_.size(), grads_.size()}); }
+  void push_state() { saved_state_.push({nodes_.size(), grads_}); }
 
   void pop_state() {
     if (!saved_state_.empty()) {
@@ -415,8 +423,8 @@ template <typename real_t> struct tape_t {
   }
 
   deq_t<node_type> nodes_;
-  vec_t<var_t<value_type>> grads_;
-  stack_t<std::tuple<idx_t, idx_t>> saved_state_;
+  grads_t grads_;
+  stack_t<std::tuple<idx_t, grads_t>> saved_state_;
 };
 
 template <typename real_t> struct tape_context {
@@ -438,6 +446,9 @@ template <typename real_t> auto &grad(var_t<real_t> &n, bool safe = true) {
     // in safe mode - you can only grad at leaf node
     assert(n.is_alive() && n.n().is_leaf());
   }
+  if (!n.t().grads_.contains(n.n().idx_)) {
+    n.t().grads_[n.n().idx_] = n.t().new_variable(0.0);
+  }
   return grad_unchecked(n);
 }
 
@@ -447,7 +458,9 @@ auto const &grad(var_t<real_t> const &n, bool safe = true) {
     // in safe mode - you can only grad at leaf node
     assert(n.is_alive() && n.n().is_leaf());
   }
-
+  if (!n.t().grads_.contains(n.n().idx_)) {
+    n.t().grads_[n.n().idx_] = n.t().new_variable(0.0);
+  }
   return grad_unchecked(n);
 }
 
@@ -1312,8 +1325,34 @@ template <typename real_t> void backward(var_t<real_t> v) {
     grad_unchecked(v) = v.t().new_variable(1.0);
   }
 
-  for (size_t idx = v.n().idx_ + 1; idx != 0; --idx) {
-    node<real_t> *n = &(v.t().nodes_[idx - 1]);
+  set_t<idx_t> all_idxs;
+  stack_t<node<real_t> *> stk;
+  set_t<idx_t> seen;
+
+  stk.push(&(v.n()));
+
+  while (!stk.empty()) {
+    node<real_t> *n = stk.top();
+    stk.pop();
+    if (!seen.contains(n->idx_)) {
+      if (!all_idxs.contains(n->idx_)) {
+        all_idxs.insert(n->idx_);
+      }
+      for (auto &l : n->ls_) {
+        stk.push(l);
+      }
+      for (auto &r : n->rs_) {
+        stk.push(r);
+      }
+    }
+  }
+
+  vec_t<idx_t> idxs(all_idxs.begin(), all_idxs.end());
+
+  std::sort(idxs.begin(), idxs.end(), std::greater<idx_t>());
+
+  for (idx_t idx : idxs) {
+    node<real_t> *n = &(v.t().nodes_[idx]);
     var_t<real_t> n_ = {&v.t(), n};
     if (!grad_unchecked(n_).is_alive()) {
       grad_unchecked(n_) = v.t().new_variable(0.0);
