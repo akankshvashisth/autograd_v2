@@ -374,6 +374,7 @@ template <typename real_t> struct node {
   fwd_f<value_type> forwards_;
   vec_t<node<value_type> *> ls_, rs_;
   idx_t idx_ = sntnl_idx;
+  bool requires_grad_ = false;
   bool is_leaf() const { return ls_.empty() && rs_.empty(); }
 };
 
@@ -388,9 +389,11 @@ template <typename real_t> struct tape_t {
     return ret;
   }
 
-  var_t<value_type> new_variable(value_type const &r) {
+  var_t<value_type> new_variable(value_type const &r,
+                                 bool requires_grad = false) {
     node_type *n = new_node();
     n->v_ = r;
+    n->requires_grad_ = requires_grad;
     return {this, n};
   }
 
@@ -690,6 +693,7 @@ template <typename mix> struct u_op_mix : mix {
     new_node->forwards_ = {bf().n_, forward};
     new_node->ls_.push_back(a.np());
     new_node->v_ = apply_op(a.n().v_);
+    new_node->requires_grad_ = a.n().requires_grad_;
     return var_t{&a.t(), new_node};
   }
 };
@@ -722,6 +726,7 @@ struct u_op_mix<relu_mix<real_t>> : relu_mix<real_t> {
     new_node->forwards_ = {bf().n_, forward};
     new_node->ls_.push_back(a.np());
     new_node->v_ = apply_op(a.n().v_);
+    new_node->requires_grad_ = a.n().requires_grad_;
     return var_t{&a.t(), new_node};
   }
 };
@@ -744,6 +749,7 @@ template <typename mix> struct op_mix : mix {
     new_node->ls_.push_back(a.np());
     new_node->rs_.push_back(b.np());
     new_node->v_ = apply_op(a.n().v_, b.n().v_);
+    new_node->requires_grad_ = a.n().requires_grad_ || b.n().requires_grad_;
     return var_t{&a.t(), new_node};
   }
 };
@@ -759,19 +765,22 @@ template <typename mix> struct v_u_to_1_op_mix : mix {
       apply(n->v_, n->ls_[i]->v_);
     }
   }
-  static value_type fwd_impl(vec_t<var_t<value_type>> const &a,
-                             vec_t<node<value_type> *> &ls) {
+  static std::tuple<value_type, bool>
+  fwd_impl(vec_t<var_t<value_type>> const &a, vec_t<node<value_type> *> &ls) {
     value_type ret = start();
+    bool requires_grad = false;
     for (int i = 0; i < a.size(); i++) {
       apply(ret, a[i].n().v_);
       ls.push_back(a[i].np());
+      requires_grad = requires_grad || a[i].n().requires_grad_;
     }
-    return ret;
+    return {ret, requires_grad};
   }
   static var_t<value_type> fwd_onto_tape(vec_t<var_t<value_type>> const &a) {
     assert(a.size());
     node<value_type> *new_node = a.front().t().new_node();
-    new_node->v_ = fwd_impl(a, new_node->ls_);
+    std::tie(new_node->v_, new_node->requires_grad_) =
+        fwd_impl(a, new_node->ls_);
     new_node->backwards_ = bf();
     new_node->forwards_ = {bf().n_, forward};
     return var_t{&a.front().t(), new_node};
@@ -790,18 +799,20 @@ template <typename mix> struct v_b_to_1_op_mix : mix {
     }
   }
 
-  static value_type fwd_impl(vec_t<var_t<value_type>> const &a,
-                             vec_t<var_t<value_type>> const &b,
-                             vec_t<node<value_type> *> &ls,
-                             vec_t<node<value_type> *> &rs) {
+  static std::tuple<value_type, bool>
+  fwd_impl(vec_t<var_t<value_type>> const &a, vec_t<var_t<value_type>> const &b,
+           vec_t<node<value_type> *> &ls, vec_t<node<value_type> *> &rs) {
     value_type ret = start();
     assert(a.size() == b.size());
+    bool requires_grad = false;
     for (int i = 0; i < a.size(); i++) {
       apply(ret, a[i].n().v_, b[i].n().v_);
       ls.push_back(a[i].np());
       rs.push_back(b[i].np());
+      requires_grad =
+          requires_grad || a[i].n().requires_grad_ || b[i].n().requires_grad_;
     }
-    return ret;
+    return {ret, requires_grad};
   }
 
   static var_t<value_type> fwd_onto_tape(vec_t<var_t<value_type>> const &a,
@@ -809,7 +820,8 @@ template <typename mix> struct v_b_to_1_op_mix : mix {
     assert(a.size());
     assert(a.size() == b.size());
     node<value_type> *new_node = a.front().t().new_node();
-    new_node->v_ = fwd_impl(a, b, new_node->ls_, new_node->rs_);
+    std::tie(new_node->v_, new_node->requires_grad_) =
+        fwd_impl(a, b, new_node->ls_, new_node->rs_);
     new_node->backwards_ = bf();
     new_node->forwards_ = {bf().n_, forward};
     return var_t{&a.front().t(), new_node};
@@ -1336,10 +1348,14 @@ template <typename real_t> void backward(var_t<real_t> v) {
     if (!seen.contains(n->idx_)) {
       seen.insert(n->idx_);
       for (auto &l : n->ls_) {
-        stk.push(l);
+        if (l->requires_grad_) {
+          stk.push(l);
+        }
       }
       for (auto &r : n->rs_) {
-        stk.push(r);
+        if (r->requires_grad_) {
+          stk.push(r);
+        }
       }
     }
   }

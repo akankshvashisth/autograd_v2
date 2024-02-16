@@ -84,8 +84,8 @@ void test_01() {
 
   ag_d::tape_t t;
 
-  const ag_d::var_t x = t.new_variable(3.0);
-  ag_d::var_t y = t.new_variable(5.0);
+  const ag_d::var_t x = t.new_variable(3.0, true);
+  ag_d::var_t y = t.new_variable(5.0, true);
 
   {
     ag_d::tape_context_t ctxt(t);
@@ -103,8 +103,8 @@ void test_01() {
       f = grad(x);
       AKS_CHECK_VARIABLE(f, expected[i]);
     }
-    AKS_CHECK_PRINT(t.nodes_.size(), t.nodes_.size(), 44436);
-    AKS_CHECK_PRINT(t.grads_.size(), t.grads_.size(), 7234);
+    AKS_CHECK_PRINT(t.nodes_.size(), t.nodes_.size(), 17448);
+    AKS_CHECK_PRINT(t.grads_.size(), t.grads_.size(), 4);
   }
 
   {
@@ -120,7 +120,7 @@ void test_01() {
       f = grad(y);
       AKS_CHECK_VARIABLE(f, expected[i]);
     }
-    AKS_CHECK_PRINT(t.nodes_.size(), t.nodes_.size(), 2473);
+    AKS_CHECK_PRINT(t.nodes_.size(), t.nodes_.size(), 1397);
     AKS_CHECK_PRINT(t.grads_.size(), t.grads_.size(), 2);
   }
 
@@ -138,8 +138,8 @@ void test_01() {
       f = grad(y);
       AKS_CHECK_VARIABLE(f, expected[i]);
     }
-    AKS_CHECK_PRINT(t.nodes_.size(), t.nodes_.size(), 1046);
-    AKS_CHECK_PRINT(t.grads_.size(), t.grads_.size(), 235);
+    AKS_CHECK_PRINT(t.nodes_.size(), t.nodes_.size(), 888);
+    AKS_CHECK_PRINT(t.grads_.size(), t.grads_.size(), 189);
   }
 
   AKS_CHECK_PRINT(t.nodes_.size(), t.nodes_.size(), 2);
@@ -150,7 +150,7 @@ void test_02() {
   std::cout << "\ntest_02" << std::endl;
   using namespace aks;
   ag_d::tape_t t;
-  const ag_d::var_t x = t.new_variable(3.0);
+  const ag_d::var_t x = t.new_variable(3.0, true);
   const ag_d::var_t y = t.new_variable(8.0);
 
   ag_d::var_t f = pow(x, y);
@@ -168,8 +168,8 @@ void test_02() {
     f = grad(x);
     AKS_CHECK_VARIABLE(f, expected[i]);
   }
-  AKS_CHECK_PRINT(t.nodes_.size(), t.nodes_.size(), 336);
-  AKS_CHECK_PRINT(t.grads_.size(), t.grads_.size(), 43);
+  AKS_CHECK_PRINT(t.nodes_.size(), t.nodes_.size(), 116);
+  AKS_CHECK_PRINT(t.grads_.size(), t.grads_.size(), 7);
   t.pop_state();
 }
 
@@ -178,7 +178,7 @@ void test_02_f() {
   using namespace aks;
   using ag = ag_f;
   ag::tape_t t;
-  const ag::var_t x = t.new_variable(3.0);
+  const ag::var_t x = t.new_variable(3.0, true);
   const ag::var_t y = t.new_variable(8.0);
 
   ag::var_t f = pow(x, y);
@@ -196,8 +196,8 @@ void test_02_f() {
     f = grad(x);
     AKS_CHECK_VARIABLE(f, expected[i]);
   }
-  AKS_CHECK_PRINT(t.nodes_.size(), t.nodes_.size(), 336);
-  AKS_CHECK_PRINT(t.grads_.size(), t.grads_.size(), 43);
+  AKS_CHECK_PRINT(t.nodes_.size(), t.nodes_.size(), 116);
+  AKS_CHECK_PRINT(t.grads_.size(), t.grads_.size(), 7);
   t.pop_state();
 }
 
@@ -205,7 +205,7 @@ void test_03() {
   std::cout << "\ntest_03" << std::endl;
   using namespace aks;
   ag_d::tape_t t;
-  const ag_d::var_t x = t.new_variable(3.0);
+  const ag_d::var_t x = t.new_variable(3.0, true);
 
   ag_d::var_t f = pow(x, ag_d::value_t(8.0));
 
@@ -221,8 +221,8 @@ void test_03() {
     f = grad(x);
     AKS_CHECK_VARIABLE(f, expected[i]);
   }
-  AKS_CHECK_PRINT(t.nodes_.size(), t.nodes_.size(), 336);
-  AKS_CHECK_PRINT(t.grads_.size(), t.grads_.size(), 43);
+  AKS_CHECK_PRINT(t.nodes_.size(), t.nodes_.size(), 116);
+  AKS_CHECK_PRINT(t.grads_.size(), t.grads_.size(), 7);
   t.pop_state();
 }
 
@@ -230,7 +230,7 @@ void test_04() {
   std::cout << "\ntest_04" << std::endl;
   using namespace aks;
   ag_d::tape_t t;
-  const ag_d::var_t x = t.new_variable(3.0);
+  const ag_d::var_t x = t.new_variable(3.0, true);
 
   ag_d::var_t f = exp(log(exp(log(exp(log(x))))));
 
@@ -254,7 +254,7 @@ void test_05() {
   std::cout << "\ntest_05" << std::endl;
   using namespace aks;
   ag_d::tape_t t;
-  const ag_d::var_t x = t.new_variable(1);
+  const ag_d::var_t x = t.new_variable(1, true);
 
   ag_d::var_t f = exp(exp(x));
 
@@ -282,7 +282,7 @@ void test_06_01() {
   using namespace aks;
   ag_d::tape_t t;
   const ag_d::var_t x =
-      t.new_variable(std::numbers::pi_v<double_t> / ag_d::value_t(2.0));
+      t.new_variable(std::numbers::pi_v<double_t> / ag_d::value_t(2.0), true);
 
   ag_d::var_t f = sin(x);
 
@@ -297,8 +297,8 @@ void test_06_01() {
     f = grad(x);
     AKS_CHECK_VARIABLE(f, expected[i]);
   }
-  AKS_CHECK_PRINT(t.nodes_.size(), t.nodes_.size(), 141);
-  AKS_CHECK_PRINT(t.grads_.size(), t.grads_.size(), 26);
+  AKS_CHECK_PRINT(t.nodes_.size(), t.nodes_.size(), 61);
+  AKS_CHECK_PRINT(t.grads_.size(), t.grads_.size(), 6);
   t.pop_state();
 }
 
@@ -307,7 +307,7 @@ void test_06_02() {
   using namespace aks;
   ag_d::tape_t t;
   const ag_d::var_t x =
-      t.new_variable(std::numbers::pi_v<double_t> / ag_d::value_t(2.0));
+      t.new_variable(std::numbers::pi_v<double_t> / ag_d::value_t(2.0), true);
 
   ag_d::var_t f = cos(x);
 
@@ -322,8 +322,8 @@ void test_06_02() {
     f = grad(x);
     AKS_CHECK_VARIABLE(f, expected[i]);
   }
-  AKS_CHECK_PRINT(t.nodes_.size(), t.nodes_.size(), 151);
-  AKS_CHECK_PRINT(t.grads_.size(), t.grads_.size(), 26);
+  AKS_CHECK_PRINT(t.nodes_.size(), t.nodes_.size(), 63);
+  AKS_CHECK_PRINT(t.grads_.size(), t.grads_.size(), 4);
   t.pop_state();
 }
 
@@ -331,7 +331,7 @@ void test_07() {
   std::cout << "\ntest_07" << std::endl;
   using namespace aks;
   ag_d::tape_t t;
-  const ag_d::var_t x = t.new_variable(2);
+  const ag_d::var_t x = t.new_variable(2, true);
 
   ag_d::var_t f = ((sin(x) ^ ag_d::value_t(2.0)) /
                    (log(x + ag_d::value_t(50.0)) ^ ag_d::value_t(2.0))) *
@@ -353,8 +353,8 @@ void test_07() {
     // AKS_PRINT(f);
     AKS_CHECK_VARIABLE(f, expected[i]);
   }
-  AKS_CHECK_PRINT(t.nodes_.size(), t.nodes_.size(), 1160802);
-  AKS_CHECK_PRINT(t.grads_.size(), t.grads_.size(), 281826);
+  AKS_CHECK_PRINT(t.nodes_.size(), t.nodes_.size(), 1146089);
+  AKS_CHECK_PRINT(t.grads_.size(), t.grads_.size(), 278472);
   t.pop_state();
 }
 
@@ -362,7 +362,7 @@ void test_08() {
   std::cout << "\ntest_08" << std::endl;
   using namespace aks;
   ag_d::tape_t t;
-  const ag_d::var_t x = t.new_variable(2);
+  const ag_d::var_t x = t.new_variable(2, true);
   const ag_d::var_t y = t.new_variable(3);
 
   ag_d::var_t f =
@@ -384,8 +384,8 @@ void test_08() {
     f = grad(x);
     AKS_CHECK_VARIABLE(f, expected[i]);
   }
-  AKS_CHECK_PRINT(t.nodes_.size(), t.nodes_.size(), 71502);
-  AKS_CHECK_PRINT(t.grads_.size(), t.grads_.size(), 15539);
+  AKS_CHECK_PRINT(t.nodes_.size(), t.nodes_.size(), 66265);
+  AKS_CHECK_PRINT(t.grads_.size(), t.grads_.size(), 14512);
   t.pop_state();
 }
 
@@ -393,7 +393,7 @@ void test_09() {
   std::cout << "\ntest_09" << std::endl;
   using namespace aks;
   ag_d::tape_t t;
-  const ag_d::var_t x = t.new_variable(2);
+  const ag_d::var_t x = t.new_variable(2, true);
   const ag_d::var_t y = t.new_variable(3);
 
   ag_d::var_t f =
@@ -416,8 +416,8 @@ void test_09() {
     f = grad(x);
     AKS_CHECK_VARIABLE(f, expected[i]);
   }
-  AKS_CHECK_PRINT(t.nodes_.size(), t.nodes_.size(), 85833);
-  AKS_CHECK_PRINT(t.grads_.size(), t.grads_.size(), 20476);
+  AKS_CHECK_PRINT(t.nodes_.size(), t.nodes_.size(), 84139);
+  AKS_CHECK_PRINT(t.grads_.size(), t.grads_.size(), 20218);
   t.pop_state();
 }
 
@@ -425,7 +425,7 @@ void test_10() {
   std::cout << "\ntest_10" << std::endl;
   using namespace aks;
   ag_d::tape_t t;
-  const ag_d::var_t x = t.new_variable(2);
+  const ag_d::var_t x = t.new_variable(2, true);
   const ag_d::var_t y = t.new_variable(3);
 
   ag_d::var_t f =
@@ -447,8 +447,8 @@ void test_10() {
     f = grad(x);
     AKS_CHECK_VARIABLE(f, expected[i]);
   }
-  AKS_CHECK_PRINT(t.nodes_.size(), t.nodes_.size(), 71521);
-  AKS_CHECK_PRINT(t.grads_.size(), t.grads_.size(), 15540);
+  AKS_CHECK_PRINT(t.nodes_.size(), t.nodes_.size(), 66266);
+  AKS_CHECK_PRINT(t.grads_.size(), t.grads_.size(), 14512);
   t.pop_state();
 }
 
@@ -456,7 +456,7 @@ void test_11() {
   std::cout << "\ntest_11" << std::endl;
   using namespace aks;
   ag_d::tape_t t;
-  const ag_d::var_t x = t.new_variable(0.5);
+  const ag_d::var_t x = t.new_variable(0.5, true);
 
   ag_d::var_t f = relu(relu(relu(x)));
 
@@ -471,7 +471,7 @@ void test_11() {
     f = grad(x);
     AKS_CHECK_VARIABLE(f, expected[i]);
   }
-  AKS_CHECK_PRINT(t.nodes_.size(), t.nodes_.size(), 21);
+  AKS_CHECK_PRINT(t.nodes_.size(), t.nodes_.size(), 17);
   AKS_CHECK_PRINT(t.grads_.size(), t.grads_.size(), 2);
   t.pop_state();
 }
@@ -480,7 +480,7 @@ void test_12() {
   std::cout << "\ntest_12" << std::endl;
   using namespace aks;
   ag_d::tape_t t;
-  const ag_d::var_t x = t.new_variable(-0.5);
+  const ag_d::var_t x = t.new_variable(-0.5, true);
 
   ag_d::var_t f = relu(relu(relu(x)));
 
@@ -495,7 +495,7 @@ void test_12() {
     f = grad(x);
     AKS_CHECK_VARIABLE(f, expected[i]);
   }
-  AKS_CHECK_PRINT(t.nodes_.size(), t.nodes_.size(), 21);
+  AKS_CHECK_PRINT(t.nodes_.size(), t.nodes_.size(), 17);
   AKS_CHECK_PRINT(t.grads_.size(), t.grads_.size(), 2);
   t.pop_state();
 }
@@ -504,7 +504,7 @@ void test_13() {
   std::cout << "\ntest_13" << std::endl;
   using namespace aks;
   ag_d::tape_t t;
-  const ag_d::var_t x = t.new_variable(2);
+  const ag_d::var_t x = t.new_variable(2, true);
   const ag_d::var_t y = t.new_variable(3);
 
   ag_d::var_t f =
@@ -528,8 +528,8 @@ void test_13() {
     f = grad(x);
     AKS_CHECK_VARIABLE(f, expected[i]);
   }
-  AKS_CHECK_PRINT(t.nodes_.size(), t.nodes_.size(), 261150);
-  AKS_CHECK_PRINT(t.grads_.size(), t.grads_.size(), 63553);
+  AKS_CHECK_PRINT(t.nodes_.size(), t.nodes_.size(), 256015);
+  AKS_CHECK_PRINT(t.grads_.size(), t.grads_.size(), 62532);
   t.pop_state();
 }
 
@@ -537,7 +537,7 @@ void test_14() {
   std::cout << "\ntest_14" << std::endl;
   using namespace aks;
   ag_d::tape_t t;
-  const ag_d::var_t x = t.new_variable(0.25);
+  const ag_d::var_t x = t.new_variable(0.25, true);
   const ag_d::var_t y = t.new_variable(0.5);
 
   ag_d::var_t f =
@@ -560,8 +560,8 @@ void test_14() {
     f = grad(x);
     AKS_CHECK_VARIABLE(f, expected[i]);
   }
-  AKS_CHECK_PRINT(t.nodes_.size(), t.nodes_.size(), 91608);
-  AKS_CHECK_PRINT(t.grads_.size(), t.grads_.size(), 21236);
+  AKS_CHECK_PRINT(t.nodes_.size(), t.nodes_.size(), 89184);
+  AKS_CHECK_PRINT(t.grads_.size(), t.grads_.size(), 20743);
   t.pop_state();
 }
 
@@ -569,9 +569,9 @@ void test_15() {
   std::cout << "\ntest_15" << std::endl;
   using namespace aks;
   ag_d::tape_t t;
-  const ag_d::var_t x = t.new_variable(2);
-  const ag_d::var_t y = t.new_variable(3);
-  const ag_d::var_t z = t.new_variable(5);
+  const ag_d::var_t x = t.new_variable(2, true);
+  const ag_d::var_t y = t.new_variable(3, true);
+  const ag_d::var_t z = t.new_variable(5, true);
 
   auto F = [&]() {
     return ((x + z) ^ y) * exp(ag_d::value_t(0.25) * sqrt(z) * y * x) *
@@ -599,8 +599,8 @@ void test_15() {
       f = grad(x);
       AKS_CHECK_VARIABLE(f, expected[i]);
     }
-    AKS_CHECK_PRINT(t.nodes_.size(), t.nodes_.size(), 315011);
-    AKS_CHECK_PRINT(t.grads_.size(), t.grads_.size(), 75043);
+    AKS_CHECK_PRINT(t.nodes_.size(), t.nodes_.size(), 311226);
+    AKS_CHECK_PRINT(t.grads_.size(), t.grads_.size(), 74182);
     t.pop_state();
   }
   {
@@ -620,8 +620,8 @@ void test_15() {
       f = grad(y);
       AKS_CHECK_VARIABLE(f, expected[i]);
     }
-    AKS_CHECK_PRINT(t.nodes_.size(), t.nodes_.size(), 2516);
-    AKS_CHECK_PRINT(t.grads_.size(), t.grads_.size(), 551);
+    AKS_CHECK_PRINT(t.nodes_.size(), t.nodes_.size(), 2372);
+    AKS_CHECK_PRINT(t.grads_.size(), t.grads_.size(), 511);
     t.pop_state();
   }
   {
@@ -642,8 +642,8 @@ void test_15() {
       f = grad(z);
       AKS_CHECK_VARIABLE(f, expected[i]);
     }
-    AKS_CHECK_PRINT(t.nodes_.size(), t.nodes_.size(), 3101);
-    AKS_CHECK_PRINT(t.grads_.size(), t.grads_.size(), 615);
+    AKS_CHECK_PRINT(t.nodes_.size(), t.nodes_.size(), 2907);
+    AKS_CHECK_PRINT(t.grads_.size(), t.grads_.size(), 568);
     t.pop_state();
   }
 }
@@ -655,9 +655,9 @@ void test_16() {
 
   ag_d::tape_t t;
 
-  const ag_d::var_t x = t.new_variable(2);
-  const ag_d::var_t y = t.new_variable(3);
-  const ag_d::var_t z = t.new_variable(4);
+  const ag_d::var_t x = t.new_variable(2, true);
+  const ag_d::var_t y = t.new_variable(3, true);
+  const ag_d::var_t z = t.new_variable(4, true);
 
   auto F = [&]() {
     ag_d::var_t f = (z * (x + y));
@@ -687,8 +687,8 @@ void test_16() {
       f = grad(x);
       AKS_CHECK_VARIABLE(f, expected[i]);
     }
-    AKS_CHECK_PRINT(t.nodes_.size(), t.nodes_.size(), 16148);
-    AKS_CHECK_PRINT(t.grads_.size(), t.grads_.size(), 3368);
+    AKS_CHECK_PRINT(t.nodes_.size(), t.nodes_.size(), 16022);
+    AKS_CHECK_PRINT(t.grads_.size(), t.grads_.size(), 3354);
     t.pop_state();
   }
 
@@ -712,7 +712,7 @@ void test_16() {
       f = grad(y);
       AKS_CHECK_VARIABLE(f, expected[i]);
     }
-    AKS_CHECK_PRINT(t.nodes_.size(), t.nodes_.size(), 25417);
+    AKS_CHECK_PRINT(t.nodes_.size(), t.nodes_.size(), 25257);
     AKS_CHECK_PRINT(t.grads_.size(), t.grads_.size(), 2);
     t.pop_state();
   }
@@ -737,7 +737,7 @@ void test_16() {
       f = grad(z);
       AKS_CHECK_VARIABLE(f, expected[i]);
     }
-    AKS_CHECK_PRINT(t.nodes_.size(), t.nodes_.size(), 25277);
+    AKS_CHECK_PRINT(t.nodes_.size(), t.nodes_.size(), 25229);
     AKS_CHECK_PRINT(t.grads_.size(), t.grads_.size(), 2);
     t.pop_state();
   }
@@ -750,9 +750,9 @@ void test_17() {
 
   ag_d::tape_t t;
 
-  const ag_d::var_t x = t.new_variable(2);
-  const ag_d::var_t y = t.new_variable(3);
-  const ag_d::var_t z = t.new_variable(4);
+  const ag_d::var_t x = t.new_variable(2, true);
+  const ag_d::var_t y = t.new_variable(3, true);
+  const ag_d::var_t z = t.new_variable(4, true);
 
   auto F = [&]() {
     ag_d::var_t f = (z * (x + y));
@@ -789,8 +789,8 @@ void test_17() {
       // AKS_PRINT(f);
       AKS_CHECK_VARIABLE(f, expected[i]);
     }
-    AKS_CHECK_PRINT(t.nodes_.size(), t.nodes_.size(), 25156);
-    AKS_CHECK_PRINT(t.grads_.size(), t.grads_.size(), 5718);
+    AKS_CHECK_PRINT(t.nodes_.size(), t.nodes_.size(), 24991);
+    AKS_CHECK_PRINT(t.grads_.size(), t.grads_.size(), 5693);
     t.pop_state();
   }
 
@@ -815,8 +815,8 @@ void test_17() {
       f = grad(y);
       AKS_CHECK_VARIABLE(f, expected[i]);
     }
-    AKS_CHECK_PRINT(t.nodes_.size(), t.nodes_.size(), 25072);
-    AKS_CHECK_PRINT(t.grads_.size(), t.grads_.size(), 5706);
+    AKS_CHECK_PRINT(t.nodes_.size(), t.nodes_.size(), 24967);
+    AKS_CHECK_PRINT(t.grads_.size(), t.grads_.size(), 5691);
     t.pop_state();
   }
 
@@ -841,8 +841,8 @@ void test_17() {
       f = grad(z);
       AKS_CHECK_VARIABLE(f, expected[i]);
     }
-    AKS_CHECK_PRINT(t.nodes_.size(), t.nodes_.size(), 25168);
-    AKS_CHECK_PRINT(t.grads_.size(), t.grads_.size(), 5718);
+    AKS_CHECK_PRINT(t.nodes_.size(), t.nodes_.size(), 25003);
+    AKS_CHECK_PRINT(t.grads_.size(), t.grads_.size(), 5693);
     t.pop_state();
   }
 }
@@ -851,7 +851,7 @@ void test_18() {
   std::cout << "\ntest_18" << std::endl;
   using namespace aks;
   ag_d::tape_t t;
-  const ag_d::var_t x = t.new_variable(2);
+  const ag_d::var_t x = t.new_variable(2, true);
 
   ag_d::var_t f = ((sin(x) ^ ag_d::value_t(2.0)) /
                    (log(x + ag_d::value_t(50.0)) ^ ag_d::value_t(2.0))) *
@@ -873,8 +873,8 @@ void test_18() {
     // AKS_PRINT(f);
     AKS_CHECK_VARIABLE(f, expected[i]);
   }
-  AKS_CHECK_PRINT(t.nodes_.size(), t.nodes_.size(), 379172);
-  AKS_CHECK_PRINT(t.grads_.size(), t.grads_.size(), 90930);
+  AKS_CHECK_PRINT(t.nodes_.size(), t.nodes_.size(), 371946);
+  AKS_CHECK_PRINT(t.grads_.size(), t.grads_.size(), 89310);
   t.pop_state();
 }
 
@@ -895,7 +895,7 @@ void test_19() {
       return r_dfdx;
     };
 
-    ag_d::var_t x = tape.new_variable(guess);
+    ag_d::var_t x = tape.new_variable(guess, true);
     ag_d::var_t fx = f(x);
 
     if constexpr (aks::vcl_detail::is_vcl_vec<ag_d::value_t>::value) {
@@ -940,9 +940,9 @@ void test_20() {
 
   ag_d::tape_t t;
 
-  ag_d::var_t x = t.new_variable(2.0);
-  ag_d::var_t y = t.new_variable(3.0);
-  ag_d::var_t z = t.new_variable(5.0);
+  ag_d::var_t x = t.new_variable(2.0, true);
+  ag_d::var_t y = t.new_variable(3.0, true);
+  ag_d::var_t z = t.new_variable(5.0, true);
 
   AKS_CHECK_VARIABLE(x, 2.0);
   AKS_CHECK_VARIABLE(y, 3.0);
@@ -1043,9 +1043,9 @@ void test_21() {
 
   ag_d::tape_t t;
 
-  ag_d::var_t x = t.new_variable(2.0);
-  ag_d::var_t y = t.new_variable(3.0);
-  ag_d::var_t z = t.new_variable(5.0);
+  ag_d::var_t x = t.new_variable(2.0, true);
+  ag_d::var_t y = t.new_variable(3.0, true);
+  ag_d::var_t z = t.new_variable(5.0, true);
 
   AKS_CHECK_VARIABLE(x, 2.0);
   AKS_CHECK_VARIABLE(y, 3.0);
@@ -1110,9 +1110,9 @@ void test_22() {
 
   ag_d::tape_t t;
 
-  ag_d::var_t x = t.new_variable(2.0);
-  ag_d::var_t y = t.new_variable(3.0);
-  ag_d::var_t z = t.new_variable(5.0);
+  ag_d::var_t x = t.new_variable(2.0, true);
+  ag_d::var_t y = t.new_variable(3.0, true);
+  ag_d::var_t z = t.new_variable(5.0, true);
 
   AKS_CHECK_VARIABLE(x, 2.0);
   AKS_CHECK_VARIABLE(y, 3.0);
@@ -1177,9 +1177,9 @@ void test_23() {
 
   ag_d::tape_t t;
 
-  ag_d::var_t x = t.new_variable(2.0);
-  ag_d::var_t y = t.new_variable(3.0);
-  ag_d::var_t z = t.new_variable(5.0);
+  ag_d::var_t x = t.new_variable(2.0, true);
+  ag_d::var_t y = t.new_variable(3.0, true);
+  ag_d::var_t z = t.new_variable(5.0, true);
 
   AKS_CHECK_VARIABLE(x, 2.0);
   AKS_CHECK_VARIABLE(y, 3.0);
@@ -1281,9 +1281,9 @@ void test_24_01() {
 
   ag_d::tape_t t;
 
-  ag_d::var_t x = t.new_variable(2.0);
-  ag_d::var_t y = t.new_variable(3.0);
-  ag_d::var_t z = t.new_variable(5.0);
+  ag_d::var_t x = t.new_variable(2.0, true);
+  ag_d::var_t y = t.new_variable(3.0, true);
+  ag_d::var_t z = t.new_variable(5.0, true);
 
   AKS_CHECK_VARIABLE(x, 2.0);
   AKS_CHECK_VARIABLE(y, 3.0);
@@ -1339,9 +1339,9 @@ void test_24_02() {
 
   ag_d::tape_t t;
 
-  ag_d::var_t x = t.new_variable(2.0);
-  ag_d::var_t y = t.new_variable(3.0);
-  ag_d::var_t z = t.new_variable(5.0);
+  ag_d::var_t x = t.new_variable(2.0, true);
+  ag_d::var_t y = t.new_variable(3.0, true);
+  ag_d::var_t z = t.new_variable(5.0, true);
 
   AKS_CHECK_VARIABLE(x, 2.0);
   AKS_CHECK_VARIABLE(y, 3.0);
@@ -1443,7 +1443,7 @@ void test_25() {
 
   ag_d::tape_t t;
 
-  auto to_variable = [&](ag_d::value_t v) { return t.new_variable(v); };
+  auto to_variable = [&](ag_d::value_t v) { return t.new_variable(v, true); };
 
   vec_t<ag_d::var_t> xs =
       zipped_op(to_variable, vec_t<ag_d::value_t>{2.0, 3.0, 5.0});
@@ -1538,8 +1538,8 @@ void test_26() {
   using namespace vcl;
   using namespace std;
   ag::tape_t t;
-  const ag::var_t x = t.new_variable(ag::value_t(std::numbers::pi_v<double_t>) /
-                                     ag::value_t(2.0, 1.0));
+  const ag::var_t x = t.new_variable(
+      ag::value_t(std::numbers::pi_v<double_t>) / ag::value_t(2.0, 1.0), true);
 
   ag::var_t f = (sin(x) ^ ag::value_t(2.0)) + (cos(x) ^ ag::value_t(2.0));
 
@@ -1582,8 +1582,8 @@ void test_27() {
     using namespace vcl;
     using namespace std;
     tape_type t;
-    const var_type x =
-        t.new_variable(value_type(std::numbers::pi_v<f_t>) / value_type(2.0));
+    const var_type x = t.new_variable(
+        value_type(std::numbers::pi_v<f_t>) / value_type(2.0), true);
 
     var_type f = sin(x);
 
@@ -1597,8 +1597,8 @@ void test_27() {
       AKS_CHECK_PRINT(f.value()[0], f.value()[0], expected[i]);
       AKS_CHECK_PRINT(f.value()[1], f.value()[1], expected[i]);
     }
-    AKS_CHECK_PRINT(t.nodes_.size(), t.nodes_.size(), 141);
-    AKS_CHECK_PRINT(t.grads_.size(), t.grads_.size(), 26);
+    AKS_CHECK_PRINT(t.nodes_.size(), t.nodes_.size(), 61);
+    AKS_CHECK_PRINT(t.grads_.size(), t.grads_.size(), 6);
 
     // AKS_PRINT(as_dot(t));
 
@@ -1644,7 +1644,7 @@ void test_28() {
       return r_dfdx;
     };
 
-    ag::var_t x = tape.new_variable(guess);
+    ag::var_t x = tape.new_variable(guess, true);
 
     size_t iter = 0;
     size_t max_iter = 100;
@@ -1713,8 +1713,8 @@ void test_29() {
 
   ag_d::tape_t t;
 
-  ag_d::var_t x = t.new_variable(2);
-  ag_d::var_t y = t.new_variable(3);
+  ag_d::var_t x = t.new_variable(2, true);
+  ag_d::var_t y = t.new_variable(3, true);
   ag_d::var_t z = x + y;
 
   ag_d::var_t f = (x ^ y) * z;
@@ -1793,8 +1793,8 @@ void test_30() {
 
   ag_d::tape_t t;
 
-  ag_d::var_t x = t.new_variable(-0.4);
-  ag_d::var_t y = t.new_variable(0.3);
+  ag_d::var_t x = t.new_variable(-0.4, true);
+  ag_d::var_t y = t.new_variable(0.3, true);
 
   ag_d::var_t z = x + y;
 
@@ -1842,8 +1842,8 @@ void test_31() {
 
   ag::tape_t t;
 
-  ag::var_t x = t.new_variable(Vec(-0.1f, -1.2f, -1.3f, -0.4f));
-  ag::var_t y = t.new_variable(Vec(1.2f, 1.0f, 1.5f, -0.4f));
+  ag::var_t x = t.new_variable(Vec(-0.1f, -1.2f, -1.3f, -0.4f), true);
+  ag::var_t y = t.new_variable(Vec(1.2f, 1.0f, 1.5f, -0.4f), true);
 
   ag::var_t f = relu(relu(relu(relu(x + y))));
 
@@ -1901,8 +1901,8 @@ void test_32() {
 
   ag::tape_t t;
 
-  ag::var_t x = t.new_variable(Vec(-0.1f));
-  ag::var_t y = t.new_variable(Vec(1.2f));
+  ag::var_t x = t.new_variable(Vec(-0.1f), true);
+  ag::var_t y = t.new_variable(Vec(1.2f), true);
 
   ag::var_t f = relu(relu(relu(relu(x + y))));
 
@@ -1940,7 +1940,7 @@ void test_33() {
   auto NR = [](ag::value_t guess, auto f, ag::value_t tolerance = 1e-6) {
     ag::tape_t tape;
 
-    ag::var_t x = tape.new_variable(guess);
+    ag::var_t x = tape.new_variable(guess, true);
     ag::var_t fx;
     ag::var_t y;
 
@@ -1998,7 +1998,9 @@ void test_34() {
 
   ag::tape_t tape;
 
-  auto to_new_variable = [&](ag::value_t x) { return tape.new_variable(x); };
+  auto to_new_variable = [&](ag::value_t x) {
+    return tape.new_variable(x, true);
+  };
   auto in_place_update = [&](ag::var_t v, ag::value_t x) {
     return v.update_in_place(x);
   };
@@ -2068,9 +2070,9 @@ struct neuron {
 
     ws.reserve(n_in);
 
-    b = tape->new_variable(unif(rng));
+    b = tape->new_variable(unif(rng), true);
     for (size_t i = 0; i < n_in; i++) {
-      ws.emplace_back(tape->new_variable(unif(rng)));
+      ws.emplace_back(tape->new_variable(unif(rng), true));
     }
 
     params = parameters_impl();
@@ -2304,8 +2306,8 @@ void test_37() {
 
   ag_d::tape_t tape;
 
-  ag_d::var_t x = tape.new_variable(2.0);
-  ag_d::var_t y = tape.new_variable(3.0);
+  ag_d::var_t x = tape.new_variable(2.0, true);
+  ag_d::var_t y = tape.new_variable(3.0, true);
 
   ag_d::var_t z = ((x * y) + (x * y));
 
@@ -2318,9 +2320,60 @@ void test_37() {
   AKS_CHECK_VALUE(dfdy.value(), 4.0);
 }
 
+void test_38() {
+  std::cout << "\ntest_38" << std::endl;
+
+  using namespace aks;
+
+  ag_d::tape_t tape;
+
+  ag_d::var_t x = tape.new_variable(ag_d::value_t(1.0), true);
+
+  ag_d::var_t z =
+      (x * x * x * x * x * x * x * x * x * x * x * x * x * x * x * x);
+
+  AKS_CHECK_VARIABLE(z, ag_d::value_t(1.0));
+  AKS_CHECK_VALUE(tape.nodes_.size(), 16);
+
+  vec_t<ag_d::value_t> expected = {16.0,
+                                   240.0,
+                                   3360.0,
+                                   43680.0,
+                                   524160.0,
+                                   5765760.0,
+                                   57657600.0,
+                                   518918400.0,
+                                   4151347200.0,
+                                   29059430400.0,
+                                   174356582400.0,
+                                   871782912000.0,
+                                   3487131648000.0,
+                                   10461394944000.0,
+                                   20922789888000.0};
+
+  vec_t<size_t> expected_size = {62,      269,     874,     2565,    6980,
+                                 17847,   43334,   100721,  225304,  486459,
+                                 1014362, 2038389, 3924620, 7152287, 12026542};
+
+  vec_t<size_t> expected_grads_size = {
+      16,    61,     187,    573,    1605,   4153,    10101,  23377,
+      51853, 110601, 226821, 445441, 829437, 1433593, 2187253};
+
+  for (int i = 0; i < 12; ++i) {
+    tape.zero_grad();
+    backward(z);
+    z = grad(x);
+
+    AKS_CHECK_VARIABLE(z, expected[i]);
+    AKS_CHECK_VALUE(tape.nodes_.size(), expected_size[i]);
+    AKS_CHECK_VALUE(tape.grads_.size(), expected_grads_size[i]);
+  }
+}
+
 } // namespace
 
 int main_tests() {
+  test_38();
   test_37();
   test_36();
   test_35();
