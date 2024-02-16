@@ -3,6 +3,7 @@
 
 #include "autograd_v2.hpp"
 
+#include <optional>
 #include <random>
 
 namespace {
@@ -2265,6 +2266,31 @@ struct mlp_inf {
   aks::vec_t<layer_linear_inf> layers;
 };
 
+struct optimizer {
+  optimizer(ag_mlp::tape_t *t, ag_mlp::vec_var_t params, ag_mlp::value_t lr)
+      : tape_(t), learning_rate_(lr), params_(std::move(params)) {
+    for (auto const &p : params_) {
+      assert(p.is_alive());
+      assert(p.n().requires_grad_);
+    }
+  }
+
+  void zero_grad() { tape_->zero_grad(); }
+
+  void step(std::optional<ag_mlp::value_t> maybe_lr = std::nullopt) {
+    ag_mlp::value_t lr = maybe_lr.value_or(learning_rate_);
+    for (auto &p : params_) {
+      ag_mlp::var_t g = grad(p);
+      ag_mlp::value_t update = p.value() - (lr * g.value());
+      p.update_in_place(update);
+    }
+  }
+
+  ag_mlp::tape_t *tape_;
+  ag_mlp::value_t learning_rate_;
+  ag_mlp::vec_var_t params_;
+};
+
 void test_35() {
   std::cout << "\ntest_35" << std::endl;
 
@@ -2487,9 +2513,6 @@ void test_39() {
     Ys.push_back({std::sin(x), std::cos(x)});
   }
 
-  // AKS_PRINT(Xs);
-  // AKS_PRINT(Ys);
-
   double_t learning_rate = 0.1;
   size_t count = 0;
   size_t const max_iterations = 10000;
@@ -2521,9 +2544,9 @@ void test_39() {
   ag_mlp::var_t loss;
   ag_mlp::vec_vec_var_t preds;
 
-  ag_mlp::vec_var_t params = nn.parameters();
+  optimizer opt(&nn.tape, nn.parameters(), learning_rate);
 
-  AKS_CHECK_VALUE(params.size(), 106);
+  AKS_CHECK_VALUE(opt.params_.size(), 106);
 
   while (count++ < max_iterations) {
     if (!loss.is_alive()) {
@@ -2536,9 +2559,8 @@ void test_39() {
         preds.push_back(pred);
       }
       loss = loss_func(ys, preds);
-      nn.tape.zero_grad();
+      opt.zero_grad();
       aks::backward(loss);
-
     } else {
       for (size_t i = 0; i < Xs.size(); ++i) {
         for (size_t j = 0; j < Xs[i].size(); ++j) {
@@ -2558,11 +2580,7 @@ void test_39() {
       }
     }
 
-    for (size_t i = 0; i < params.size(); ++i) {
-      ag_mlp::var_t g = grad(params[i]);
-      double_t update = params[i].value() - (learning_rate * g.value());
-      params[i].update_in_place(update);
-    }
+    opt.step(learning_rate);
   }
 
   // AKS_CHECK_VALUE(losses.front(), 0.475618744490630185);
