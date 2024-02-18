@@ -3,6 +3,7 @@
 
 #include "autograd_v2.hpp"
 
+#include <optional>
 #include <random>
 
 namespace {
@@ -16,6 +17,9 @@ template <typename value_type> struct autograd_traits {
   using tape_t = aks::tape_t<value_type>;
   using tape_context_t = aks::tape_context<value_type>;
   using vec_var_t = aks::vec_t<var_t>;
+  using vec_value_t = aks::vec_t<value_t>;
+  using vec_vec_var_t = aks::vec_t<vec_var_t>;
+  using vec_vec_value_t = aks::vec_t<vec_value_t>;
 };
 
 using ag_d = autograd_traits<double_t>;
@@ -74,6 +78,412 @@ static size_t TOTAL_TEST_FAIL = 0;
 
 #define AKS_CHECK_VALUE(EXPR, EXPECTED) AKS_CHECK_PRINT(EXPR, (EXPR), EXPECTED)
 
+#define AKS_CHECK_TRUE(EXPR) AKS_CHECK_PRINT(EXPR, (EXPR), (1))
+
+#define AKS_CHECK_FALSE(EXPR) AKS_CHECK_PRINT(EXPR, (EXPR), (0))
+
+#define AKS_CHECK_EQUAL(A, B) AKS_CHECK_PRINT(A, (A), (B))
+
+#define AKS_CHECK_VALUES(RESULT, EXPECTED)                                     \
+  do {                                                                         \
+    AKS_CHECK_TRUE(RESULT.size() == EXPECTED.size());                          \
+    for (size_t i = 0; i < RESULT.size(); ++i) {                               \
+      AKS_CHECK_VALUE(RESULT[i], EXPECTED[i]);                                 \
+    }                                                                          \
+  } while (false)
+
+#define AKS_CHECK_VARIABLES(RESULT, EXPECTED)                                  \
+  do {                                                                         \
+    AKS_CHECK_TRUE(RESULT.size() == EXPECTED.size());                          \
+    for (size_t i = 0; i < RESULT.size(); ++i) {                               \
+      AKS_CHECK_VALUE(RESULT[i].value(), EXPECTED[i]);                         \
+    }                                                                          \
+  } while (false)
+
+} // namespace
+
+namespace std {
+template <typename real_t> struct hash<aks::var_t<real_t>> {
+  size_t operator()(const aks::var_t<real_t> &v) const {
+    return std::hash<aks::idx_t>()(v.n().idx_);
+  }
+};
+
+template <typename real_t> struct equal_to<aks::var_t<real_t>> {
+  size_t operator()(const aks::var_t<real_t> &v,
+                    const aks::var_t<real_t> &w) const {
+    return v.n().idx_ == w.n().idx_;
+  }
+};
+
+} // namespace std
+
+namespace {
+using ag_mlp = autograd_traits<double_t>;
+
+struct neuron {
+  neuron(std::mt19937_64 &rng, ag_mlp::tape_t *t, size_t n_in, bool nlin)
+      : tape(t), nonlinearity(nlin) {
+
+    const ag_mlp::value_t k = ag_mlp::value_t{1.0} / ag_mlp::value_t(n_in);
+    const ag_mlp::value_t sqrt_k = std::sqrt(k);
+    std::uniform_real_distribution<ag_mlp::value_t> unif(-k, k);
+
+    ws.reserve(n_in);
+
+    b = tape->new_variable(unif(rng), true);
+    for (size_t i = 0; i < n_in; i++) {
+      ws.emplace_back(tape->new_variable(unif(rng), true));
+    }
+
+    params = parameters_impl();
+  }
+
+  void forward(ag_mlp::vec_var_t const &xs, ag_mlp::var_t &out) {
+    ag_mlp::var_t r = b + dot(ws, xs);
+    out = (nonlinearity ? relu(r) : r);
+  }
+
+  ag_mlp::vec_var_t const &parameters() { return params; }
+
+  ag_mlp::vec_var_t parameters_impl() {
+    ag_mlp::vec_var_t ret;
+    ret.reserve(ws.size() + 1);
+    ret.push_back(b);
+    ret.insert(ret.end(), ws.begin(), ws.end());
+    return ret;
+  }
+
+  ag_mlp::tape_t *tape;
+  bool nonlinearity = true;
+  ag_mlp::var_t b;
+  ag_mlp::vec_var_t ws;
+  ag_mlp::vec_var_t params;
+};
+
+struct layer_linear {
+  layer_linear(std::mt19937_64 &rng, ag_mlp::tape_t *t, size_t n_in,
+               size_t n_out, bool nlin) {
+    for (size_t i = 0; i < n_out; i++) {
+      neurons.emplace_back(rng, t, n_in, nlin);
+    }
+    params = parameters_impl();
+  }
+
+  void forward(ag_mlp::vec_var_t const &x, ag_mlp::vec_var_t &out) {
+    if (out.size() != neurons.size()) {
+      out.resize(neurons.size());
+    }
+    for (size_t i = 0; i < neurons.size(); i++) {
+      neurons[i].forward(x, out[i]);
+    }
+  }
+
+  ag_mlp::vec_var_t const &parameters() { return params; }
+
+private:
+  ag_mlp::vec_var_t parameters_impl() {
+    ag_mlp::vec_var_t ret;
+    for (auto &n : neurons) {
+      ag_mlp::vec_var_t const &p = n.parameters();
+      ret.insert(ret.end(), p.begin(), p.end());
+    }
+    return ret;
+  }
+
+  aks::vec_t<neuron> neurons;
+  ag_mlp::vec_var_t params;
+
+  friend struct layer_linear_inf;
+};
+
+struct mlp {
+
+  mlp(size_t n_in, aks::vec_t<size_t> n_outs, unsigned long long seed = 42) {
+    rng.seed(seed);
+    aks::vec_t<size_t> sz(1, n_in);
+    sz.insert(sz.end(), n_outs.begin(), n_outs.end());
+
+    for (size_t i = 0; i < n_outs.size(); i++) {
+      layers.emplace_back(rng, &tape, sz[i], sz[i + 1],
+                          (i != n_outs.size() - 1));
+    }
+
+    params = parameters_impl();
+  }
+
+  void forward(ag_mlp::vec_var_t const &x, ag_mlp::vec_var_t &out,
+               ag_mlp::vec_var_t &buffer) {
+    out.clear();
+    out.insert(out.end(), x.begin(), x.end());
+    for (auto &layer : layers) {
+      buffer.clear();
+      layer.forward(out, buffer);
+      buffer.swap(out);
+    }
+    // out has the result
+  }
+
+  ag_mlp::vec_var_t const &parameters() { return params; }
+
+  ag_mlp::vec_var_t parameters_impl() {
+    ag_mlp::vec_var_t ret;
+    for (auto &l : layers) {
+      ret.insert(ret.end(), l.parameters().begin(), l.parameters().end());
+    }
+    return ret;
+  }
+
+  ag_mlp::tape_t tape;
+  aks::vec_t<layer_linear> layers;
+  ag_mlp::vec_var_t params;
+  ag_mlp::var_t last_neural_node;
+  std::mt19937_64 rng;
+};
+
+struct neuron_inf {
+  neuron_inf(neuron const &n) {
+    nonlinearity = n.nonlinearity;
+    b = n.b.value();
+    ws.reserve(n.ws.size());
+    for (const auto &w : n.ws) {
+      ws.push_back(w.value());
+    }
+  }
+
+  void forward(ag_mlp::vec_value_t const &xs, ag_mlp::value_t &out) {
+    out = b;
+    for (size_t i = 0; i < xs.size(); ++i) {
+      out += xs[i] * ws[i];
+    }
+    if (nonlinearity) {
+      out = out > ag_mlp::value_t(0.0) ? out : ag_mlp::value_t(0.0);
+    }
+  }
+
+  bool nonlinearity = true;
+  ag_mlp::value_t b;
+  ag_mlp::vec_value_t ws;
+};
+
+struct layer_linear_inf {
+  layer_linear_inf(layer_linear const &ll) {
+    neurons.reserve(ll.neurons.size());
+    for (auto const &n : ll.neurons) {
+      neurons.emplace_back(n);
+    }
+  }
+
+  void forward(ag_mlp::vec_value_t const &x, ag_mlp::vec_value_t &out) {
+    if (out.size() != neurons.size()) {
+      out.resize(neurons.size());
+    }
+    for (size_t i = 0; i < neurons.size(); i++) {
+      neurons[i].forward(x, out[i]);
+    }
+  }
+
+private:
+  aks::vec_t<neuron_inf> neurons;
+};
+
+struct mlp_inf {
+  mlp_inf(mlp const &m) {
+    layers.reserve(m.layers.size());
+    for (auto const &lay : m.layers) {
+      layers.emplace_back(lay);
+    }
+  }
+
+  void forward(ag_mlp::vec_value_t const &x, ag_mlp::vec_value_t &out,
+               ag_mlp::vec_value_t &buffer) {
+    out.clear();
+    out.insert(out.end(), x.begin(), x.end());
+    for (auto &layer : layers) {
+      buffer.clear();
+      layer.forward(out, buffer);
+      buffer.swap(out);
+    }
+    // out has the result
+  }
+
+  ag_mlp::vec_value_t forward(ag_mlp::vec_value_t const &x) {
+    ag_mlp::vec_value_t out;
+    ag_mlp::vec_value_t buffer;
+    out.clear();
+    out.insert(out.end(), x.begin(), x.end());
+    for (auto &layer : layers) {
+      buffer.clear();
+      layer.forward(out, buffer);
+      buffer.swap(out);
+    }
+    return out;
+  }
+
+  aks::vec_t<layer_linear_inf> layers;
+};
+
+struct optimizer {
+  optimizer(ag_mlp::tape_t *t, ag_mlp::vec_var_t params, ag_mlp::value_t lr)
+      : tape_(t), learning_rate_(lr), params_(std::move(params)) {
+    for (auto const &p : params_) {
+      assert(p.is_alive());
+      assert(p.n().requires_grad_);
+    }
+  }
+
+  void zero_grad() { tape_->zero_grad(); }
+
+  void step(std::optional<ag_mlp::value_t> maybe_lr = std::nullopt) {
+    ag_mlp::value_t lr = maybe_lr.value_or(learning_rate_);
+    for (auto &p : params_) {
+      ag_mlp::var_t g = grad(p);
+      ag_mlp::value_t update = p.value() - (lr * g.value());
+      p.update_in_place(update);
+    }
+  }
+
+  ag_mlp::tape_t *tape_;
+  ag_mlp::value_t learning_rate_;
+  ag_mlp::vec_var_t params_;
+};
+
+template <typename real_t>
+aks::vec_t<real_t> linspace(real_t start, real_t end, size_t num,
+                            bool endpoint = true) {
+  aks::vec_t<real_t> ret(num);
+  real_t step = (end - start) / (num - (endpoint ? 1 : 0));
+  for (size_t i = 0; i < num; ++i) {
+    ret[i] = start + step * i;
+  }
+  return ret;
+}
+
+template <typename real_t>
+aks::vec_t<aks::var_t<real_t>> put_on_tape(aks::tape_t<real_t> *tape,
+                                           aks::vec_t<real_t> const &xs,
+                                           bool requires_grad = false) {
+  aks::vec_t<aks::var_t<real_t>> ret;
+  ret.reserve(xs.size());
+  for (auto const &x : xs) {
+    ret.push_back(tape->new_variable(x, requires_grad));
+  }
+  return ret;
+}
+
+template <typename real_t>
+aks::vec_t<real_t> get_values(aks::vec_t<aks::var_t<real_t>> const &xs) {
+  aks::vec_t<real_t> ret;
+  ret.reserve(xs.size());
+  for (auto const &x : xs) {
+    assert(x.is_alive());
+    ret.push_back(x.value());
+  }
+  return ret;
+}
+
+template <typename real_t>
+aks::vec_t<aks::var_t<real_t>>
+get_grads(aks::vec_t<aks::var_t<real_t>> const &xs) {
+  aks::vec_t<aks::var_t<real_t>> ret;
+  ret.reserve(xs.size());
+  for (auto const &x : xs) {
+    assert(x.is_alive());
+    assert(x.requires_grad());
+    ret.push_back(aks::grad(x));
+  }
+  return ret;
+}
+
+template <typename real_t>
+aks::map_t<aks::var_t<real_t>, aks::var_t<real_t>>
+get_grads_map(aks::vec_t<aks::var_t<real_t>> const &xs) {
+  aks::map_t<aks::var_t<real_t>, aks::var_t<real_t>> ret;
+  ret.reserve(xs.size());
+  for (auto const &x : xs) {
+    assert(x.is_alive());
+    assert(x.requires_grad());
+    ret[x] = aks::grad(x);
+  }
+  return ret;
+}
+
+template <typename real_t, typename... var_ts>
+auto get_grads(aks::var_t<real_t> x, var_ts... xs) {
+  return std::make_tuple(aks::grad(x), aks::grad(xs)...);
+}
+
+template <typename real_t> void build_gradients(aks::var_t<real_t> f) {
+  assert(f.is_alive());
+  assert(f.requires_grad());
+  f.t().zero_grad();
+  aks::backward(f);
+}
+
+template <typename real_t>
+aks::var_t<real_t> gradient(aks::var_t<real_t> f, aks::var_t<real_t> x) {
+  build_gradients(f);
+  return aks::grad(x);
+}
+
+template <typename real_t, typename... vars>
+auto gradient(aks::var_t<real_t> f, aks::var_t<real_t> x, vars... xs) {
+  build_gradients(f);
+  return get_grads(x, xs...);
+}
+
+template <typename real_t>
+aks::vec_t<aks::var_t<real_t>>
+gradient(aks::var_t<real_t> f, aks::vec_t<aks::var_t<real_t>> const &xs) {
+  build_gradients(f);
+  return get_grads(xs);
+}
+
+template <typename real_t>
+aks::vec_t<aks::vec_t<aks::var_t<real_t>>>
+gradient(aks::var_t<real_t> f,
+         aks::vec_t<aks::vec_t<aks::var_t<real_t>>> const &xss) {
+  build_gradients(f);
+  aks::vec_t<aks::vec_t<aks::var_t<real_t>>> ret;
+  ret.reserve(xss.size());
+  for (auto const &xs : xss) {
+    ret.emplace_back(get_grads(xs));
+  }
+  return ret;
+}
+
+template <typename real_t>
+aks::vec_t<aks::var_t<real_t>>
+gradient(aks::vec_t<aks::var_t<real_t>> const &fs,
+         aks::vec_t<aks::var_t<real_t>> const &xs) {
+  aks::vec_t<aks::var_t<real_t>> ret;
+  ret.reserve(fs.size());
+  assert(fs.size() == xs.size());
+  for (size_t i = 0; i < fs.size(); ++i) {
+    ret.push_back(gradient(fs[i], xs[i]));
+  }
+  return ret;
+}
+
+template <typename real_t>
+aks::map_t<aks::var_t<real_t>, aks::var_t<real_t>>
+gradient_map(aks::var_t<real_t> f, aks::vec_t<aks::var_t<real_t>> const &xs) {
+  build_gradients(f);
+  return get_grads_map(xs);
+}
+
+template <typename real_t>
+aks::map_t<aks::var_t<real_t>, aks::var_t<real_t>>
+gradient_map(aks::vec_t<aks::var_t<real_t>> const &fs,
+             aks::vec_t<aks::var_t<real_t>> const &xs) {
+  aks::map_t<aks::var_t<real_t>, aks::var_t<real_t>> ret;
+
+  assert(fs.size() == xs.size());
+  for (size_t i = 0; i < fs.size(); ++i) {
+    ret[xs[i]] = gradient(fs[i], xs[i]);
+  }
+  return ret;
+}
 } // namespace
 
 namespace {
@@ -103,8 +513,8 @@ void test_01() {
       f = grad(x);
       AKS_CHECK_VARIABLE(f, expected[i]);
     }
-    AKS_CHECK_PRINT(t.nodes_.size(), t.nodes_.size(), 17448);
-    AKS_CHECK_PRINT(t.grads_.size(), t.grads_.size(), 4);
+    AKS_CHECK_PRINT(t.nodes_.size(), t.nodes_.size(), 11717);
+    AKS_CHECK_PRINT(t.grads_.size(), t.grads_.size(), 2);
   }
 
   {
@@ -120,7 +530,7 @@ void test_01() {
       f = grad(y);
       AKS_CHECK_VARIABLE(f, expected[i]);
     }
-    AKS_CHECK_PRINT(t.nodes_.size(), t.nodes_.size(), 1397);
+    AKS_CHECK_PRINT(t.nodes_.size(), t.nodes_.size(), 1038);
     AKS_CHECK_PRINT(t.grads_.size(), t.grads_.size(), 2);
   }
 
@@ -138,8 +548,8 @@ void test_01() {
       f = grad(y);
       AKS_CHECK_VARIABLE(f, expected[i]);
     }
-    AKS_CHECK_PRINT(t.nodes_.size(), t.nodes_.size(), 888);
-    AKS_CHECK_PRINT(t.grads_.size(), t.grads_.size(), 189);
+    AKS_CHECK_PRINT(t.nodes_.size(), t.nodes_.size(), 766);
+    AKS_CHECK_PRINT(t.grads_.size(), t.grads_.size(), 154);
   }
 
   AKS_CHECK_PRINT(t.nodes_.size(), t.nodes_.size(), 2);
@@ -168,8 +578,8 @@ void test_02() {
     f = grad(x);
     AKS_CHECK_VARIABLE(f, expected[i]);
   }
-  AKS_CHECK_PRINT(t.nodes_.size(), t.nodes_.size(), 116);
-  AKS_CHECK_PRINT(t.grads_.size(), t.grads_.size(), 7);
+  AKS_CHECK_PRINT(t.nodes_.size(), t.nodes_.size(), 73);
+  AKS_CHECK_PRINT(t.grads_.size(), t.grads_.size(), 4);
   t.pop_state();
 }
 
@@ -196,8 +606,8 @@ void test_02_f() {
     f = grad(x);
     AKS_CHECK_VARIABLE(f, expected[i]);
   }
-  AKS_CHECK_PRINT(t.nodes_.size(), t.nodes_.size(), 116);
-  AKS_CHECK_PRINT(t.grads_.size(), t.grads_.size(), 7);
+  AKS_CHECK_PRINT(t.nodes_.size(), t.nodes_.size(), 73);
+  AKS_CHECK_PRINT(t.grads_.size(), t.grads_.size(), 4);
   t.pop_state();
 }
 
@@ -221,8 +631,8 @@ void test_03() {
     f = grad(x);
     AKS_CHECK_VARIABLE(f, expected[i]);
   }
-  AKS_CHECK_PRINT(t.nodes_.size(), t.nodes_.size(), 116);
-  AKS_CHECK_PRINT(t.grads_.size(), t.grads_.size(), 7);
+  AKS_CHECK_PRINT(t.nodes_.size(), t.nodes_.size(), 73);
+  AKS_CHECK_PRINT(t.grads_.size(), t.grads_.size(), 4);
   t.pop_state();
 }
 
@@ -245,8 +655,8 @@ void test_04() {
     f = grad(x);
     AKS_CHECK_VARIABLE(f, expected[i]);
   }
-  AKS_CHECK_PRINT(t.nodes_.size(), t.nodes_.size(), 192);
-  AKS_CHECK_PRINT(t.grads_.size(), t.grads_.size(), 44);
+  AKS_CHECK_PRINT(t.nodes_.size(), t.nodes_.size(), 184);
+  AKS_CHECK_PRINT(t.grads_.size(), t.grads_.size(), 41);
   t.pop_state();
 }
 
@@ -272,8 +682,8 @@ void test_05() {
     f = grad(x);
     AKS_CHECK_VARIABLE(f, expected[i]);
   }
-  AKS_CHECK_PRINT(t.nodes_.size(), t.nodes_.size(), 22517);
-  AKS_CHECK_PRINT(t.grads_.size(), t.grads_.size(), 5598);
+  AKS_CHECK_PRINT(t.nodes_.size(), t.nodes_.size(), 16669);
+  AKS_CHECK_PRINT(t.grads_.size(), t.grads_.size(), 4081);
   t.pop_state();
 }
 
@@ -297,8 +707,8 @@ void test_06_01() {
     f = grad(x);
     AKS_CHECK_VARIABLE(f, expected[i]);
   }
-  AKS_CHECK_PRINT(t.nodes_.size(), t.nodes_.size(), 61);
-  AKS_CHECK_PRINT(t.grads_.size(), t.grads_.size(), 6);
+  AKS_CHECK_PRINT(t.nodes_.size(), t.nodes_.size(), 49);
+  AKS_CHECK_PRINT(t.grads_.size(), t.grads_.size(), 4);
   t.pop_state();
 }
 
@@ -322,8 +732,8 @@ void test_06_02() {
     f = grad(x);
     AKS_CHECK_VARIABLE(f, expected[i]);
   }
-  AKS_CHECK_PRINT(t.nodes_.size(), t.nodes_.size(), 63);
-  AKS_CHECK_PRINT(t.grads_.size(), t.grads_.size(), 4);
+  AKS_CHECK_PRINT(t.nodes_.size(), t.nodes_.size(), 51);
+  AKS_CHECK_PRINT(t.grads_.size(), t.grads_.size(), 3);
   t.pop_state();
 }
 
@@ -353,8 +763,8 @@ void test_07() {
     // AKS_PRINT(f);
     AKS_CHECK_VARIABLE(f, expected[i]);
   }
-  AKS_CHECK_PRINT(t.nodes_.size(), t.nodes_.size(), 1146089);
-  AKS_CHECK_PRINT(t.grads_.size(), t.grads_.size(), 278472);
+  AKS_CHECK_PRINT(t.nodes_.size(), t.nodes_.size(), 948883);
+  AKS_CHECK_PRINT(t.grads_.size(), t.grads_.size(), 214781);
   t.pop_state();
 }
 
@@ -384,8 +794,8 @@ void test_08() {
     f = grad(x);
     AKS_CHECK_VARIABLE(f, expected[i]);
   }
-  AKS_CHECK_PRINT(t.nodes_.size(), t.nodes_.size(), 66265);
-  AKS_CHECK_PRINT(t.grads_.size(), t.grads_.size(), 14512);
+  AKS_CHECK_PRINT(t.nodes_.size(), t.nodes_.size(), 42734);
+  AKS_CHECK_PRINT(t.grads_.size(), t.grads_.size(), 11775);
   t.pop_state();
 }
 
@@ -416,8 +826,8 @@ void test_09() {
     f = grad(x);
     AKS_CHECK_VARIABLE(f, expected[i]);
   }
-  AKS_CHECK_PRINT(t.nodes_.size(), t.nodes_.size(), 84139);
-  AKS_CHECK_PRINT(t.grads_.size(), t.grads_.size(), 20218);
+  AKS_CHECK_PRINT(t.nodes_.size(), t.nodes_.size(), 64625);
+  AKS_CHECK_PRINT(t.grads_.size(), t.grads_.size(), 15510);
   t.pop_state();
 }
 
@@ -447,8 +857,8 @@ void test_10() {
     f = grad(x);
     AKS_CHECK_VARIABLE(f, expected[i]);
   }
-  AKS_CHECK_PRINT(t.nodes_.size(), t.nodes_.size(), 66266);
-  AKS_CHECK_PRINT(t.grads_.size(), t.grads_.size(), 14512);
+  AKS_CHECK_PRINT(t.nodes_.size(), t.nodes_.size(), 42735);
+  AKS_CHECK_PRINT(t.grads_.size(), t.grads_.size(), 11775);
   t.pop_state();
 }
 
@@ -471,7 +881,7 @@ void test_11() {
     f = grad(x);
     AKS_CHECK_VARIABLE(f, expected[i]);
   }
-  AKS_CHECK_PRINT(t.nodes_.size(), t.nodes_.size(), 17);
+  AKS_CHECK_PRINT(t.nodes_.size(), t.nodes_.size(), 15);
   AKS_CHECK_PRINT(t.grads_.size(), t.grads_.size(), 2);
   t.pop_state();
 }
@@ -495,7 +905,7 @@ void test_12() {
     f = grad(x);
     AKS_CHECK_VARIABLE(f, expected[i]);
   }
-  AKS_CHECK_PRINT(t.nodes_.size(), t.nodes_.size(), 17);
+  AKS_CHECK_PRINT(t.nodes_.size(), t.nodes_.size(), 15);
   AKS_CHECK_PRINT(t.grads_.size(), t.grads_.size(), 2);
   t.pop_state();
 }
@@ -528,8 +938,8 @@ void test_13() {
     f = grad(x);
     AKS_CHECK_VARIABLE(f, expected[i]);
   }
-  AKS_CHECK_PRINT(t.nodes_.size(), t.nodes_.size(), 256015);
-  AKS_CHECK_PRINT(t.grads_.size(), t.grads_.size(), 62532);
+  AKS_CHECK_PRINT(t.nodes_.size(), t.nodes_.size(), 193502);
+  AKS_CHECK_PRINT(t.grads_.size(), t.grads_.size(), 46561);
   t.pop_state();
 }
 
@@ -560,8 +970,8 @@ void test_14() {
     f = grad(x);
     AKS_CHECK_VARIABLE(f, expected[i]);
   }
-  AKS_CHECK_PRINT(t.nodes_.size(), t.nodes_.size(), 89184);
-  AKS_CHECK_PRINT(t.grads_.size(), t.grads_.size(), 20743);
+  AKS_CHECK_PRINT(t.nodes_.size(), t.nodes_.size(), 72391);
+  AKS_CHECK_PRINT(t.grads_.size(), t.grads_.size(), 16622);
   t.pop_state();
 }
 
@@ -599,8 +1009,8 @@ void test_15() {
       f = grad(x);
       AKS_CHECK_VARIABLE(f, expected[i]);
     }
-    AKS_CHECK_PRINT(t.nodes_.size(), t.nodes_.size(), 311226);
-    AKS_CHECK_PRINT(t.grads_.size(), t.grads_.size(), 74182);
+    AKS_CHECK_PRINT(t.nodes_.size(), t.nodes_.size(), 259994);
+    AKS_CHECK_PRINT(t.grads_.size(), t.grads_.size(), 58341);
     t.pop_state();
   }
   {
@@ -620,8 +1030,8 @@ void test_15() {
       f = grad(y);
       AKS_CHECK_VARIABLE(f, expected[i]);
     }
-    AKS_CHECK_PRINT(t.nodes_.size(), t.nodes_.size(), 2372);
-    AKS_CHECK_PRINT(t.grads_.size(), t.grads_.size(), 511);
+    AKS_CHECK_PRINT(t.nodes_.size(), t.nodes_.size(), 2084);
+    AKS_CHECK_PRINT(t.grads_.size(), t.grads_.size(), 430);
     t.pop_state();
   }
   {
@@ -642,8 +1052,8 @@ void test_15() {
       f = grad(z);
       AKS_CHECK_VARIABLE(f, expected[i]);
     }
-    AKS_CHECK_PRINT(t.nodes_.size(), t.nodes_.size(), 2907);
-    AKS_CHECK_PRINT(t.grads_.size(), t.grads_.size(), 568);
+    AKS_CHECK_PRINT(t.nodes_.size(), t.nodes_.size(), 2484);
+    AKS_CHECK_PRINT(t.grads_.size(), t.grads_.size(), 482);
     t.pop_state();
   }
 }
@@ -687,8 +1097,8 @@ void test_16() {
       f = grad(x);
       AKS_CHECK_VARIABLE(f, expected[i]);
     }
-    AKS_CHECK_PRINT(t.nodes_.size(), t.nodes_.size(), 16022);
-    AKS_CHECK_PRINT(t.grads_.size(), t.grads_.size(), 3354);
+    AKS_CHECK_PRINT(t.nodes_.size(), t.nodes_.size(), 11306);
+    AKS_CHECK_PRINT(t.grads_.size(), t.grads_.size(), 2176);
     t.pop_state();
   }
 
@@ -712,7 +1122,7 @@ void test_16() {
       f = grad(y);
       AKS_CHECK_VARIABLE(f, expected[i]);
     }
-    AKS_CHECK_PRINT(t.nodes_.size(), t.nodes_.size(), 25257);
+    AKS_CHECK_PRINT(t.nodes_.size(), t.nodes_.size(), 17141);
     AKS_CHECK_PRINT(t.grads_.size(), t.grads_.size(), 2);
     t.pop_state();
   }
@@ -737,7 +1147,7 @@ void test_16() {
       f = grad(z);
       AKS_CHECK_VARIABLE(f, expected[i]);
     }
-    AKS_CHECK_PRINT(t.nodes_.size(), t.nodes_.size(), 25229);
+    AKS_CHECK_PRINT(t.nodes_.size(), t.nodes_.size(), 17129);
     AKS_CHECK_PRINT(t.grads_.size(), t.grads_.size(), 2);
     t.pop_state();
   }
@@ -789,8 +1199,8 @@ void test_17() {
       // AKS_PRINT(f);
       AKS_CHECK_VARIABLE(f, expected[i]);
     }
-    AKS_CHECK_PRINT(t.nodes_.size(), t.nodes_.size(), 24991);
-    AKS_CHECK_PRINT(t.grads_.size(), t.grads_.size(), 5693);
+    AKS_CHECK_PRINT(t.nodes_.size(), t.nodes_.size(), 20686);
+    AKS_CHECK_PRINT(t.grads_.size(), t.grads_.size(), 4354);
     t.pop_state();
   }
 
@@ -815,8 +1225,8 @@ void test_17() {
       f = grad(y);
       AKS_CHECK_VARIABLE(f, expected[i]);
     }
-    AKS_CHECK_PRINT(t.nodes_.size(), t.nodes_.size(), 24967);
-    AKS_CHECK_PRINT(t.grads_.size(), t.grads_.size(), 5691);
+    AKS_CHECK_PRINT(t.nodes_.size(), t.nodes_.size(), 20674);
+    AKS_CHECK_PRINT(t.grads_.size(), t.grads_.size(), 4353);
     t.pop_state();
   }
 
@@ -841,8 +1251,8 @@ void test_17() {
       f = grad(z);
       AKS_CHECK_VARIABLE(f, expected[i]);
     }
-    AKS_CHECK_PRINT(t.nodes_.size(), t.nodes_.size(), 25003);
-    AKS_CHECK_PRINT(t.grads_.size(), t.grads_.size(), 5693);
+    AKS_CHECK_PRINT(t.nodes_.size(), t.nodes_.size(), 20698);
+    AKS_CHECK_PRINT(t.grads_.size(), t.grads_.size(), 4354);
     t.pop_state();
   }
 }
@@ -873,8 +1283,8 @@ void test_18() {
     // AKS_PRINT(f);
     AKS_CHECK_VARIABLE(f, expected[i]);
   }
-  AKS_CHECK_PRINT(t.nodes_.size(), t.nodes_.size(), 371946);
-  AKS_CHECK_PRINT(t.grads_.size(), t.grads_.size(), 89310);
+  AKS_CHECK_PRINT(t.nodes_.size(), t.nodes_.size(), 308828);
+  AKS_CHECK_PRINT(t.grads_.size(), t.grads_.size(), 69864);
   t.pop_state();
 }
 
@@ -1558,8 +1968,8 @@ void test_26() {
     AKS_CHECK_PRINT(f.value()[0], f.value()[0], 0.0);
     AKS_CHECK_PRINT(f.value()[1], f.value()[1], 0.0);
   }
-  AKS_CHECK_PRINT(t.nodes_.size(), t.nodes_.size(), 36);
-  AKS_CHECK_PRINT(t.grads_.size(), t.grads_.size(), 8);
+  AKS_CHECK_PRINT(t.nodes_.size(), t.nodes_.size(), 30);
+  AKS_CHECK_PRINT(t.grads_.size(), t.grads_.size(), 6);
   t.pop_state();
 
 #endif
@@ -1597,8 +2007,8 @@ void test_27() {
       AKS_CHECK_PRINT(f.value()[0], f.value()[0], expected[i]);
       AKS_CHECK_PRINT(f.value()[1], f.value()[1], expected[i]);
     }
-    AKS_CHECK_PRINT(t.nodes_.size(), t.nodes_.size(), 61);
-    AKS_CHECK_PRINT(t.grads_.size(), t.grads_.size(), 6);
+    AKS_CHECK_PRINT(t.nodes_.size(), t.nodes_.size(), 49);
+    AKS_CHECK_PRINT(t.grads_.size(), t.grads_.size(), 4);
 
     // AKS_PRINT(as_dot(t));
 
@@ -1692,7 +2102,7 @@ void test_28() {
           2.44948983192444f, 2.64575123786926f, 2.82842707633972f, 3.f,
           3.16227769851685f, 3.31662487983704f, 3.46410155296326f,
           3.60555124282837f, 3.74165749549866f, 3.87298321723938f, 4.f),
-      vec_t<size_t>{1, 7, 12});
+      vec_t<size_t>{1, 7, 10});
 
   test_NR(
       Vec(3.0), [&](ag::var_t x) { return (x ^ Vec(3.0f)) - N; },
@@ -1701,7 +2111,7 @@ void test_28() {
           2.0800838470459f, 2.15443468093872f, 2.22398018836975f,
           2.28942847251892f, 2.35133457183838f, 2.41014218330383f,
           2.46621203422546f, 2.51984214782715f),
-      vec_t<size_t>{1, 8, 18});
+      vec_t<size_t>{1, 8, 13});
 
 #endif
 }
@@ -1813,7 +2223,7 @@ void test_30() {
   AKS_CHECK_VARIABLE(f, 0.0);
   AKS_CHECK_VARIABLE(dfdx, 0.0);
   AKS_CHECK_VARIABLE(dfdy, 0.0);
-  AKS_CHECK_VALUE(t.nodes_.size(), 15);
+  AKS_CHECK_VALUE(t.nodes_.size(), 14);
 
   y.update_in_place(0.5);
 
@@ -1829,7 +2239,7 @@ void test_30() {
   AKS_CHECK_VARIABLE(f, 0.1);
   AKS_CHECK_VARIABLE(dfdx, 1.0);
   AKS_CHECK_VARIABLE(dfdy, 1.0);
-  AKS_CHECK_VALUE(t.nodes_.size(), 15);
+  AKS_CHECK_VALUE(t.nodes_.size(), 14);
 }
 
 void test_31() {
@@ -2055,129 +2465,6 @@ void test_34() {
   // AKS_PRINT(as_dot(tape));
 }
 
-} // namespace
-
-namespace {
-using ag_mlp = autograd_traits<double_t>;
-
-struct neuron {
-  neuron(std::mt19937_64 &rng, ag_mlp::tape_t *t, size_t n_in, bool nlin)
-      : tape(t), nonlinearity(nlin) {
-
-    const double_t k = 1.0 / double_t(n_in);
-    const double_t sqrt_k = std::sqrt(k);
-    std::uniform_real_distribution<ag_mlp::value_t> unif(-k, k);
-
-    ws.reserve(n_in);
-
-    b = tape->new_variable(unif(rng), true);
-    for (size_t i = 0; i < n_in; i++) {
-      ws.emplace_back(tape->new_variable(unif(rng), true));
-    }
-
-    params = parameters_impl();
-  }
-
-  void forward(ag_mlp::vec_var_t const &xs, ag_mlp::var_t &out) {
-    ag_mlp::var_t r = b + dot(ws, xs);
-    out = (nonlinearity ? relu(r) : r);
-  }
-
-  ag_mlp::vec_var_t const &parameters() { return params; }
-
-  ag_mlp::vec_var_t parameters_impl() {
-    ag_mlp::vec_var_t ret;
-    ret.reserve(ws.size() + 1);
-    ret.push_back(b);
-    ret.insert(ret.end(), ws.begin(), ws.end());
-    return ret;
-  }
-
-  ag_mlp::tape_t *tape;
-  bool nonlinearity = true;
-  ag_mlp::var_t b;
-  ag_mlp::vec_var_t ws;
-  ag_mlp::vec_var_t params;
-};
-
-struct layer_linear {
-  layer_linear(std::mt19937_64 &rng, ag_mlp::tape_t *t, size_t n_in,
-               size_t n_out, bool nlin) {
-    for (size_t i = 0; i < n_out; i++) {
-      neurons.emplace_back(rng, t, n_in, nlin);
-    }
-    params = parameters_impl();
-  }
-
-  void forward(ag_mlp::vec_var_t const &x, ag_mlp::vec_var_t &out) {
-    if (out.size() != neurons.size()) {
-      out.resize(neurons.size());
-    }
-    for (size_t i = 0; i < neurons.size(); i++) {
-      neurons[i].forward(x, out[i]);
-    }
-  }
-
-  ag_mlp::vec_var_t const &parameters() { return params; }
-
-private:
-  ag_mlp::vec_var_t parameters_impl() {
-    ag_mlp::vec_var_t ret;
-    for (auto &n : neurons) {
-      ag_mlp::vec_var_t const &p = n.parameters();
-      ret.insert(ret.end(), p.begin(), p.end());
-    }
-    return ret;
-  }
-
-  aks::vec_t<neuron> neurons;
-  ag_mlp::vec_var_t params;
-};
-
-struct mlp {
-
-  mlp(size_t n_in, aks::vec_t<size_t> n_outs, unsigned long long seed = 42) {
-    rng.seed(seed);
-    aks::vec_t<size_t> sz(1, n_in);
-    sz.insert(sz.end(), n_outs.begin(), n_outs.end());
-
-    for (size_t i = 0; i < n_outs.size(); i++) {
-      layers.emplace_back(rng, &tape, sz[i], sz[i + 1],
-                          (i != n_outs.size() - 1));
-    }
-
-    params = parameters_impl();
-  }
-
-  void forward(ag_mlp::vec_var_t const &x, ag_mlp::vec_var_t &out,
-               ag_mlp::vec_var_t &buffer) {
-    out.clear();
-    out.insert(out.end(), x.begin(), x.end());
-    for (auto &layer : layers) {
-      buffer.clear();
-      layer.forward(out, buffer);
-      buffer.swap(out);
-    }
-    // out has the result
-  }
-
-  ag_mlp::vec_var_t const &parameters() { return params; }
-
-  ag_mlp::vec_var_t parameters_impl() {
-    ag_mlp::vec_var_t ret;
-    for (auto &l : layers) {
-      ret.insert(ret.end(), l.parameters().begin(), l.parameters().end());
-    }
-    return ret;
-  }
-
-  ag_mlp::tape_t tape;
-  aks::vec_t<layer_linear> layers;
-  ag_mlp::vec_var_t params;
-  ag_mlp::var_t last_neural_node;
-  std::mt19937_64 rng;
-};
-
 void test_35() {
   std::cout << "\ntest_35" << std::endl;
 
@@ -2306,18 +2593,35 @@ void test_37() {
 
   ag_d::tape_t tape;
 
-  ag_d::var_t x = tape.new_variable(2.0, true);
-  ag_d::var_t y = tape.new_variable(3.0, true);
+  {
+    ag_d::tape_context_t context(tape);
 
-  ag_d::var_t z = ((x * y) + (x * y));
+    ag_d::var_t x = tape.new_variable(2.0, true);
+    ag_d::var_t y = tape.new_variable(3.0, true);
 
-  backward(z);
+    ag_d::var_t z = ((x * y) + (x * y));
 
-  ag_d::var_t dfdx = grad(x);
-  ag_d::var_t dfdy = grad(y);
+    backward(z);
 
-  AKS_CHECK_VALUE(dfdx.value(), 6.0);
-  AKS_CHECK_VALUE(dfdy.value(), 4.0);
+    ag_d::var_t dfdx = grad(x);
+    ag_d::var_t dfdy = grad(y);
+
+    AKS_CHECK_VARIABLE(dfdx, 6.0);
+    AKS_CHECK_VARIABLE(dfdy, 4.0);
+  }
+  {
+    ag_d::tape_context_t context(tape);
+
+    ag_d::var_t x = tape.new_variable(2.0, true);
+    ag_d::var_t y = tape.new_variable(3.0, true);
+
+    ag_d::var_t z = ((x * y) + (x * y));
+
+    auto const &[dfdx, dfdy] = gradient(z, x, y);
+
+    AKS_CHECK_VARIABLE(dfdx, 6.0);
+    AKS_CHECK_VARIABLE(dfdy, 4.0);
+  }
 }
 
 void test_38() {
@@ -2351,18 +2655,16 @@ void test_38() {
                                    10461394944000.0,
                                    20922789888000.0};
 
-  vec_t<size_t> expected_size = {62,      269,     874,     2565,    6980,
-                                 17847,   43334,   100721,  225304,  486459,
-                                 1014362, 2038389, 3924620, 7152287, 12026542};
+  vec_t<size_t> expected_size = {62,     266,     820,     2218,    5572,
+                                 13310,  30584,   68018,   146860,  308134,
+                                 627616, 1236890, 2342804, 4210574, 6995848};
 
-  vec_t<size_t> expected_grads_size = {
-      16,    61,     187,    573,    1605,   4153,    10101,  23377,
-      51853, 110601, 226821, 445441, 829437, 1433593, 2187253};
+  vec_t<size_t> expected_grads_size = {16,     60,     170,    474,    1238,
+                                       3044,   7122,   15984,  34574,  72204,
+                                       145418, 281096, 516102, 880644, 1327106};
 
   for (int i = 0; i < 12; ++i) {
-    tape.zero_grad();
-    backward(z);
-    z = grad(x);
+    z = gradient(z, x);
 
     AKS_CHECK_VARIABLE(z, expected[i]);
     AKS_CHECK_VALUE(tape.nodes_.size(), expected_size[i]);
@@ -2370,9 +2672,437 @@ void test_38() {
   }
 }
 
-} // namespace
+void test_39() {
+  std::cout << "\ntest_39" << std::endl;
+
+  using namespace aks;
+  const double_t PI = std::numbers::pi_v<double_t>;
+
+  vec_t<double_t> Xs_temp = {-1.0,
+                             -0.7894736842105263,
+                             -0.5789473684210527,
+                             -0.368421052631579,
+                             -0.1578947368421053,
+                             0.05263157894736836,
+                             0.26315789473684204,
+                             0.4736842105263157,
+                             0.6842105263157894,
+                             0.894736842105263};
+  for (double_t &x : Xs_temp) {
+    x *= PI;
+  }
+
+  vec_t<vec_t<double_t>> Xs;
+  for (double_t const &x : Xs_temp) {
+    Xs.push_back({x});
+  }
+
+  vec_t<vec_t<double_t>> Ys;
+  for (double_t &x : Xs_temp) {
+    Ys.push_back({std::sin(x), std::cos(x)});
+  }
+
+  double_t learning_rate = 0.1;
+  size_t count = 0;
+  size_t const max_iterations = 10000;
+  vec_t<double_t> losses;
+
+  mlp nn(1, {8, 8, 2}, 55320);
+
+  auto loss_func = [&](ag_mlp::vec_vec_var_t const &y,
+                       ag_mlp::vec_vec_var_t const &pred) {
+    ag_mlp::var_t two = nn.tape.new_variable(2.0);
+    ag_mlp::vec_var_t each;
+
+    for (size_t i = 0; i < y.size(); ++i) {
+      for (size_t j = 0; j < y[i].size(); ++j) {
+        each.push_back((pred[i][j] - y[i][j]) ^ two);
+      }
+    }
+    return mean(each);
+  };
+
+  ag_mlp::vec_vec_var_t ys = zipped_op(
+      [&](vec_t<double_t> xs) {
+        return zipped_op([&](double_t x) { return nn.tape.new_variable(x); },
+                         xs);
+      },
+      Ys);
+  ag_mlp::vec_var_t buffer, pred;
+  ag_mlp::vec_var_t x;
+  ag_mlp::var_t loss;
+  ag_mlp::vec_vec_var_t preds;
+
+  optimizer opt(&nn.tape, nn.parameters(), learning_rate);
+
+  AKS_CHECK_VALUE(opt.params_.size(), 106);
+
+  while (count++ < max_iterations) {
+    if (!loss.is_alive()) {
+      for (size_t i = 0; i < Xs.size(); ++i) {
+        x.resize(Xs[i].size());
+        for (size_t j = 0; j < Xs[i].size(); ++j) {
+          x[j] = nn.tape.new_variable(Xs[i][j]);
+        }
+        nn.forward(x, pred, buffer);
+        preds.push_back(pred);
+      }
+      loss = loss_func(ys, preds);
+      opt.zero_grad();
+      aks::backward(loss);
+    } else {
+      for (size_t i = 0; i < Xs.size(); ++i) {
+        for (size_t j = 0; j < Xs[i].size(); ++j) {
+          x[j].update_in_place(Xs[i][j]);
+        }
+        aks::forward(&nn.tape);
+      }
+    }
+
+    double_t const current_loss = loss.value();
+
+    losses.push_back(current_loss);
+
+    if (count % 1000 == 0) {
+      if (learning_rate > 0.0001) {
+        learning_rate *= 0.99;
+      }
+    }
+
+    opt.step(learning_rate);
+  }
+
+  // AKS_CHECK_VALUE(losses.front(), 0.475618744490630185);
+  // AKS_CHECK_VALUE(losses.back(), 0.0);
+
+  AKS_CHECK_VALUE(losses.front(), 0.499967997191235);
+  AKS_CHECK_VALUE(losses.back(), 0.0);
+
+  if (false) {
+    mlp_inf nn_inf(nn);
+    std::vector<std::vector<double>> outs;
+    for (double i = -PI * 3; i <= PI * 3; i += 0.1) {
+      std::vector<double> op = {i};
+      auto pred = nn_inf.forward(op);
+
+      op.insert(op.end(), pred.begin(), pred.end());
+      outs.push_back(op);
+    }
+    std::cout << "x"
+              << ","
+              << "pred_sin"
+              << ","
+              << "pred_cos"
+              << ","
+              << "sin"
+              << ","
+              << "cos" << std::endl;
+    for (const auto &o : outs) {
+      std::cout << o[0] << "," << o[1] << "," << o[2] << "," << std::sin(o[0])
+                << "," << std::cos(o[0]) << std::endl;
+    }
+  }
+}
+
+void test_40() {
+  std::cout << "\ntest_40" << std::endl;
+  using namespace aks;
+  using ag = autograd_traits<double_t>;
+
+  {
+    ag::vec_value_t xs = linspace(-1.0, 1.0, 5);
+    ag::vec_value_t expected = {-1., -0.5, 0., 0.5, 1.};
+
+    AKS_CHECK_VALUES(xs, expected);
+  }
+
+  {
+    ag::vec_value_t xs = linspace(-1.0, 1.0, 5, false);
+    ag::vec_value_t expected = {-1., -0.6, -0.2, 0.2, 0.6};
+
+    AKS_CHECK_VALUES(xs, expected);
+  }
+
+  {
+    ag::vec_value_t xs = linspace(-1.0, 1.0, 4);
+    ag::vec_value_t expected = {-1., -0.33333333, 0.33333333, 1.};
+
+    AKS_CHECK_VALUES(xs, expected);
+  }
+
+  {
+    ag::vec_value_t xs = linspace(-1.0, 1.0, 4, false);
+    ag::vec_value_t expected = {-1., -0.5, 0., 0.5};
+
+    AKS_CHECK_VALUES(xs, expected);
+  }
+}
+
+void test_41() {
+  std::cout << "\ntest_41" << std::endl;
+
+  using namespace aks;
+  using ag = autograd_traits<double_t>;
+
+  ag::tape_t tape;
+
+  auto to_tape = [&](ag::vec_value_t const &vs, bool requires_grad = false) {
+    return put_on_tape(&tape, vs, requires_grad);
+  };
+
+  auto var = [&](ag::value_t v, bool requires_grad = false) {
+    return tape.new_variable(v, requires_grad);
+  };
+
+  {
+    ag::tape_context_t context(tape);
+
+    ag::vec_value_t data = linspace(-1.0, 1.0, 5);
+    ag::vec_var_t xs = to_tape(data);
+
+    AKS_CHECK_VARIABLES(xs, data);
+  }
+
+  {
+    ag::tape_context_t context(tape);
+
+    ag::vec_value_t data_x = linspace(-1.0, 1.0, 5);
+    ag::vec_value_t data_y = linspace(1.0, -1.0, 5);
+    ag::vec_var_t xs = to_tape(data_x);
+    ag::vec_var_t ys = to_tape(data_y);
+
+    AKS_CHECK_VARIABLES(xs, data_x);
+    AKS_CHECK_VARIABLES(ys, data_y);
+
+    ag::var_t f = dot(xs, ys);
+
+    AKS_CHECK_VARIABLE(f, -2.5);
+  }
+
+  {
+    ag::tape_context_t context(tape);
+
+    ag::vec_value_t data_x = {1., 2., 3.};
+    ag::vec_value_t data_y = {4., 5., 6.};
+    ag::vec_var_t xs = to_tape(data_x, true);
+    ag::vec_var_t ys = to_tape(data_y);
+
+    AKS_CHECK_VARIABLES(xs, data_x);
+    AKS_CHECK_VARIABLES(ys, data_y);
+
+    ag::var_t f = dot(xs, ys);
+
+    AKS_CHECK_VARIABLE(f, 32.);
+
+    ag::vec_var_t gs = gradient(f, xs);
+    AKS_CHECK_VARIABLES(gs, data_y);
+  }
+
+  {
+    ag::tape_context_t context(tape);
+
+    ag::vec_value_t data_x = {1., 2., 3.};
+    ag::vec_value_t data_y = {4., 5., 6.};
+    ag::vec_var_t xs = to_tape(data_x);
+    ag::vec_var_t ys = to_tape(data_y, true);
+
+    AKS_CHECK_VARIABLES(xs, data_x);
+    AKS_CHECK_VARIABLES(ys, data_y);
+
+    ag::var_t f = dot(xs, ys);
+
+    AKS_CHECK_VARIABLE(f, 32.);
+
+    ag::vec_var_t gs = gradient(f, ys);
+    AKS_CHECK_VARIABLES(gs, data_x);
+  }
+
+  {
+    ag::tape_context_t context(tape);
+
+    ag::vec_value_t data_x = {1., 2., 3.};
+    ag::vec_value_t data_y = {4., 5., 6.};
+    ag::vec_var_t xs = to_tape(data_x, true);
+    ag::vec_var_t ys = to_tape(data_y, true);
+
+    AKS_CHECK_VARIABLES(xs, data_x);
+    AKS_CHECK_VARIABLES(ys, data_y);
+
+    ag::var_t f = dot(xs, ys);
+
+    AKS_CHECK_VARIABLE(f, 32.);
+
+    ag::vec_vec_var_t gs = gradient(f, {xs, ys});
+    AKS_CHECK_VARIABLES(gs[0], data_y);
+    AKS_CHECK_VARIABLES(gs[1], data_x);
+  }
+
+  {
+    ag::tape_context_t context(tape);
+
+    ag::var_t x = var(5.0, true);
+    ag::var_t y = var(3.0);
+    ag::var_t z = var(2.0);
+
+    AKS_CHECK_VARIABLE(x, 5.0);
+    AKS_CHECK_VARIABLE(y, 3.0);
+    AKS_CHECK_VARIABLE(z, 2.0);
+
+    ag::var_t f = (x + y) ^ z;
+
+    AKS_CHECK_VARIABLE(f, 64.);
+
+    ag::var_t gx = gradient(f, x);
+    AKS_CHECK_VARIABLE(gx, 16.0);
+  }
+
+  {
+    ag::tape_context_t context(tape);
+
+    ag::var_t x = var(5.0, true);
+    ag::var_t y = var(3.0, true);
+    ag::var_t z = var(2.0, true);
+
+    AKS_CHECK_VARIABLE(x, 5.0);
+    AKS_CHECK_VARIABLE(y, 3.0);
+    AKS_CHECK_VARIABLE(z, 2.0);
+
+    ag::var_t f = (x + y) ^ z;
+
+    AKS_CHECK_VARIABLE(f, 64.);
+
+    auto [gx, gy, gz] = gradient(f, x, y, z);
+    AKS_CHECK_VARIABLE(gx, 16.0);
+    AKS_CHECK_VARIABLE(gy, 16.0);
+    AKS_CHECK_VARIABLE(gz, 133.084258667509488);
+  }
+
+  {
+    ag::tape_context_t context(tape);
+
+    ag::var_t x = var(5.0, true);
+    ag::var_t y = var(3.0, true);
+    ag::var_t z = var(2.0, true);
+
+    AKS_CHECK_VARIABLE(x, 5.0);
+    AKS_CHECK_VARIABLE(y, 3.0);
+    AKS_CHECK_VARIABLE(z, 2.0);
+
+    ag::var_t fx = (x + y) ^ z;
+    ag::var_t fy = (x + y) ^ z;
+    ag::var_t fz = (x + y) ^ z;
+
+    AKS_CHECK_VARIABLE(fx, 64.);
+    AKS_CHECK_VARIABLE(fy, 64.);
+    AKS_CHECK_VARIABLE(fz, 64.);
+
+    ag::vec_var_t gs =
+        gradient(ag::vec_var_t{fx, fy, fz}, ag::vec_var_t{x, y, z});
+    AKS_CHECK_VARIABLE(gs[0], 16.0);
+    AKS_CHECK_VARIABLE(gs[1], 16.0);
+    AKS_CHECK_VARIABLE(gs[2], 133.084258667509488);
+  }
+
+  {
+    ag::tape_context_t context(tape);
+
+    ag::var_t x = var(5.0, true);
+    ag::var_t y = var(3.0, true);
+    ag::var_t z = var(2.0, true);
+
+    AKS_CHECK_VARIABLE(x, 5.0);
+    AKS_CHECK_VARIABLE(y, 3.0);
+    AKS_CHECK_VARIABLE(z, 2.0);
+
+    ag::var_t f = (x + y) ^ z;
+
+    AKS_CHECK_VARIABLE(f, 64.);
+
+    auto gs = gradient_map(f, {x, y, z});
+    AKS_CHECK_VARIABLE(gs[x], 16.0);
+    AKS_CHECK_VARIABLE(gs[y], 16.0);
+    AKS_CHECK_VARIABLE(gs[z], 133.084258667509488);
+  }
+
+  {
+    ag::tape_context_t context(tape);
+
+    ag::var_t x = var(5.0, true);
+    ag::var_t y = var(3.0, true);
+    ag::var_t z = var(2.0, true);
+
+    AKS_CHECK_VARIABLE(x, 5.0);
+    AKS_CHECK_VARIABLE(y, 3.0);
+    AKS_CHECK_VARIABLE(z, 2.0);
+
+    ag::var_t fx = (x + y) ^ z;
+    ag::var_t fy = (x + y) ^ z;
+    ag::var_t fz = (x + y) ^ z;
+
+    AKS_CHECK_VARIABLE(fx, 64.);
+    AKS_CHECK_VARIABLE(fy, 64.);
+    AKS_CHECK_VARIABLE(fz, 64.);
+
+    auto gs = gradient_map(ag::vec_var_t{fx, fy, fz}, ag::vec_var_t{x, y, z});
+    AKS_CHECK_VARIABLE(gs[x], 16.0);
+    AKS_CHECK_VARIABLE(gs[y], 16.0);
+    AKS_CHECK_VARIABLE(gs[z], 133.084258667509488);
+  }
+
+  {
+    ag::tape_context_t context(tape);
+
+    ag::var_t x = var(5.0, true);
+    ag::var_t y = var(3.0, true);
+    ag::var_t z = var(2.0, true);
+
+    AKS_CHECK_VARIABLE(x, 5.0);
+    AKS_CHECK_VARIABLE(y, 3.0);
+    AKS_CHECK_VARIABLE(z, 2.0);
+
+    ag::var_t f = (x + y) ^ z;
+
+    AKS_CHECK_VARIABLE(f, 64.);
+
+    AKS_CHECK_EQUAL(tape.nodes_.size(), 5);
+
+    build_gradients(f);
+
+    AKS_CHECK_EQUAL(tape.nodes_.size(), 18);
+
+    {
+      auto gs = get_grads_map(ag::vec_var_t{x, y, z});
+      AKS_CHECK_VARIABLE(gs[x], 16.0);
+      AKS_CHECK_VARIABLE(gs[y], 16.0);
+      AKS_CHECK_VARIABLE(gs[z], 133.084258667509488);
+
+      AKS_CHECK_EQUAL(tape.nodes_.size(), 18);
+    }
+    {
+      auto gs = get_grads(ag::vec_var_t{x, y, z});
+      AKS_CHECK_VARIABLE(gs[0], 16.0);
+      AKS_CHECK_VARIABLE(gs[1], 16.0);
+      AKS_CHECK_VARIABLE(gs[2], 133.084258667509488);
+
+      AKS_CHECK_EQUAL(tape.nodes_.size(), 18);
+    }
+    {
+      auto [gx, gy, gz] = get_grads(x, y, z);
+      AKS_CHECK_VARIABLE(gx, 16.0);
+      AKS_CHECK_VARIABLE(gy, 16.0);
+      AKS_CHECK_VARIABLE(gz, 133.084258667509488);
+
+      AKS_CHECK_EQUAL(tape.nodes_.size(), 18);
+    }
+  }
+}
 
 int main_tests() {
+  test_41();
+  test_40();
+#ifdef NDEBUG
+  test_39();
+#endif
   test_38();
   test_37();
   test_36();
@@ -2420,6 +3150,8 @@ int main_tests() {
             << "\nfailed : " << TOTAL_TEST_FAIL << std::endl;
   return 0;
 }
+
+} // namespace
 
 int main() {
   main_tests();
