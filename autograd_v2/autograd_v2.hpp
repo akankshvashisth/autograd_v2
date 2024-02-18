@@ -321,16 +321,25 @@ template <typename real_t> struct var_t {
   var_t(var_t const &r) = default;
   var_t(var_t &&r) = default;
 
-  var_t(value_type r, tape_type *t);
+  var_t(value_type r, tape_type *t, bool requires_grad = false);
 
-  var_t clone() const { return var_t{value(), t_}; }
+  var_t clone() const { return var_t{value(), t_, requires_grad()}; }
 
   value_type value() const;
 
-  tape_type &t() { return *t_; }
+  bool requires_grad() const { return n_ != nullptr && n_->requires_grad_; }
+
+  tape_type &t() {
+    assert(t_ != nullptr);
+    return *t_;
+  }
   tape_type &t() const { return *t_; }
   node_type &n() { return *n_; }
-  node_type const &n() const { return *n_; }
+  node_type const &n() const {
+    assert(is_alive());
+    assert(n_ != nullptr);
+    return *n_;
+  }
   node_type *np() const { return n_; }
 
   var_t &operator=(var_t const &r) = default;
@@ -445,6 +454,12 @@ template <typename real_t> auto const &grad_unchecked(var_t<real_t> const &n) {
 }
 
 template <typename real_t> auto &grad(var_t<real_t> &n, bool safe = true) {
+  assert(n.requires_grad());
+  assert(n.is_alive());
+  if (!n.requires_grad()) {
+    real_t nan_ = std::numeric_limits<real_t>::quiet_NaN();
+    n.t().grads_[n.n().idx_] = n.t().new_variable(nan_);
+  }
   if (safe) {
     // in safe mode - you can only grad at leaf node
     assert(n.is_alive() && n.n().is_leaf());
@@ -457,6 +472,12 @@ template <typename real_t> auto &grad(var_t<real_t> &n, bool safe = true) {
 
 template <typename real_t>
 auto const &grad(var_t<real_t> const &n, bool safe = true) {
+  assert(n.requires_grad());
+  assert(n.is_alive());
+  if (!n.requires_grad()) {
+    real_t nan_ = std::numeric_limits<real_t>::quiet_NaN();
+    n.t().grads_[n.n().idx_] = n.t().new_variable(nan_);
+  }
   if (safe) {
     // in safe mode - you can only grad at leaf node
     assert(n.is_alive() && n.n().is_leaf());
@@ -916,9 +937,10 @@ template <typename real_t> auto operator^(real_t a, var_t<real_t> b) {
   return pow(var_t{a, &b.t()}, b);
 }
 
-template <typename real_t> var_t<real_t>::var_t(real_t r, tape_t<real_t> *t) {
+template <typename real_t>
+var_t<real_t>::var_t(real_t r, tape_t<real_t> *t, bool requires_grad) {
   t_ = t;
-  n_ = t_->new_variable(r).np();
+  n_ = t_->new_variable(r, requires_grad).np();
 }
 
 template <typename real_t>
@@ -1085,17 +1107,21 @@ void forward_from_to(tape_t<real_t> *t, var_t<real_t> const *from,
 
 template <typename real_t, typename F>
 void backward_grad_accumulate(var_t<real_t> &x, F df) {
-  if (grad_unchecked(x).is_alive()) {
-    grad_unchecked(x) += df();
-  } else {
-    grad_unchecked(x) = df();
+  if (x.n().requires_grad_) {
+    if (grad_unchecked(x).is_alive()) {
+      grad_unchecked(x) += df();
+    } else {
+      grad_unchecked(x) = df();
+    }
   }
 }
 
 template <typename real_t>
 void backward_set_grad_if_not_alive(var_t<real_t> &x) {
-  if (!grad_unchecked(x).is_alive()) {
-    grad_unchecked(x) = x.t().new_variable(0.0);
+  if (x.n().requires_grad_) {
+    if (!grad_unchecked(x).is_alive()) {
+      grad_unchecked(x) = x.t().new_variable(0.0);
+    }
   }
 }
 
@@ -1243,8 +1269,10 @@ void asum_mix<real_t>::backward(tape_t<real_t> *t, node<real_t> *n) {
 
   for (auto &ls : n->ls_) {
     var_t<real_t> l{t, ls};
-    backward_set_grad_if_not_alive(l);
-    grad_unchecked(l) += fg;
+    if (l.n().requires_grad_) {
+      backward_set_grad_if_not_alive(l);
+      grad_unchecked(l) += fg;
+    }
   }
 }
 
@@ -1255,11 +1283,15 @@ void add_mix<real_t>::backward(tape_t<real_t> *t, node<real_t> *n) {
   var_t<real_t> l{t, n->ls_.front()};
   var_t<real_t> r{t, n->rs_.front()};
 
-  backward_set_grad_if_not_alive(l);
-  backward_set_grad_if_not_alive(r);
+  if (l.requires_grad()) {
+    backward_set_grad_if_not_alive(l);
+    grad_unchecked(l) += fg;
+  }
 
-  grad_unchecked(l) += fg;
-  grad_unchecked(r) += fg;
+  if (r.requires_grad()) {
+    backward_set_grad_if_not_alive(r);
+    grad_unchecked(r) += fg;
+  }
 }
 
 template <typename real_t>
@@ -1269,11 +1301,15 @@ void sub_mix<real_t>::backward(tape_t<real_t> *t, node<real_t> *n) {
   var_t<real_t> l{t, n->ls_.front()};
   var_t<real_t> r{t, n->rs_.front()};
 
-  backward_set_grad_if_not_alive(l);
-  backward_set_grad_if_not_alive(r);
+  if (l.requires_grad()) {
+    backward_set_grad_if_not_alive(l);
+    grad_unchecked(l) += fg;
+  }
 
-  grad_unchecked(l) += fg;
-  grad_unchecked(r) -= fg;
+  if (r.requires_grad()) {
+    backward_set_grad_if_not_alive(r);
+    grad_unchecked(r) -= fg;
+  }
 }
 
 template <typename real_t>
