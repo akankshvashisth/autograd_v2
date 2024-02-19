@@ -127,7 +127,7 @@ struct neuron {
 
     const ag_mlp::value_t k = ag_mlp::value_t{1.0} / ag_mlp::value_t(n_in);
     const ag_mlp::value_t sqrt_k = std::sqrt(k);
-    std::uniform_real_distribution<ag_mlp::value_t> unif(-k, k);
+    std::uniform_real_distribution<ag_mlp::value_t> unif(-sqrt_k, sqrt_k);
 
     ws.reserve(n_in);
 
@@ -141,7 +141,7 @@ struct neuron {
 
   void forward(ag_mlp::vec_var_t const &xs, ag_mlp::var_t &out) {
     ag_mlp::var_t r = b + dot(ws, xs);
-    out = (nonlinearity ? relu(r) : r);
+    out = (nonlinearity ? tanh(r) : r);
   }
 
   ag_mlp::vec_var_t const &parameters() { return params; }
@@ -251,13 +251,14 @@ struct neuron_inf {
     }
   }
 
-  void forward(ag_mlp::vec_value_t const &xs, ag_mlp::value_t &out) {
+  void forward(ag_mlp::vec_value_t const &xs, ag_mlp::value_t &out) const {
     out = b;
     for (size_t i = 0; i < xs.size(); ++i) {
       out += xs[i] * ws[i];
     }
     if (nonlinearity) {
-      out = out > ag_mlp::value_t(0.0) ? out : ag_mlp::value_t(0.0);
+      // out = out > ag_mlp::value_t(0.0) ? out : ag_mlp::value_t(0.0);
+      out = std::tanh(out);
     }
   }
 
@@ -274,7 +275,7 @@ struct layer_linear_inf {
     }
   }
 
-  void forward(ag_mlp::vec_value_t const &x, ag_mlp::vec_value_t &out) {
+  void forward(ag_mlp::vec_value_t const &x, ag_mlp::vec_value_t &out) const {
     if (out.size() != neurons.size()) {
       out.resize(neurons.size());
     }
@@ -296,7 +297,7 @@ struct mlp_inf {
   }
 
   void forward(ag_mlp::vec_value_t const &x, ag_mlp::vec_value_t &out,
-               ag_mlp::vec_value_t &buffer) {
+               ag_mlp::vec_value_t &buffer) const {
     out.clear();
     out.insert(out.end(), x.begin(), x.end());
     for (auto &layer : layers) {
@@ -307,7 +308,7 @@ struct mlp_inf {
     // out has the result
   }
 
-  ag_mlp::vec_value_t forward(ag_mlp::vec_value_t const &x) {
+  ag_mlp::vec_value_t forward(ag_mlp::vec_value_t const &x) const {
     ag_mlp::vec_value_t out;
     ag_mlp::vec_value_t buffer;
     out.clear();
@@ -321,31 +322,6 @@ struct mlp_inf {
   }
 
   aks::vec_t<layer_linear_inf> layers;
-};
-
-struct optimizer {
-  optimizer(ag_mlp::tape_t *t, ag_mlp::vec_var_t params, ag_mlp::value_t lr)
-      : tape_(t), learning_rate_(lr), params_(std::move(params)) {
-    for (auto const &p : params_) {
-      assert(p.is_alive());
-      assert(p.n().requires_grad_);
-    }
-  }
-
-  void zero_grad() { tape_->zero_grad(); }
-
-  void step(std::optional<ag_mlp::value_t> maybe_lr = std::nullopt) {
-    ag_mlp::value_t lr = maybe_lr.value_or(learning_rate_);
-    for (auto &p : params_) {
-      ag_mlp::var_t g = grad(p);
-      ag_mlp::value_t update = p.value() - (lr * g.value());
-      p.update_in_place(update);
-    }
-  }
-
-  ag_mlp::tape_t *tape_;
-  ag_mlp::value_t learning_rate_;
-  ag_mlp::vec_var_t params_;
 };
 
 template <typename real_t>
@@ -484,6 +460,76 @@ gradient_map(aks::vec_t<aks::var_t<real_t>> const &fs,
   }
   return ret;
 }
+
+struct optimizer_gd {
+  optimizer_gd(ag_mlp::vec_var_t params, ag_mlp::value_t lr)
+      : learning_rate_(lr), params_(std::move(params)) {
+    for (auto const &p : params_) {
+      assert(p.is_alive());
+      assert(p.n().requires_grad_);
+    }
+  }
+
+  void zero_grad() { params_.front().t().zero_grad(); }
+
+  void step(std::optional<ag_mlp::value_t> maybe_lr = std::nullopt) {
+    ag_mlp::value_t lr = maybe_lr.value_or(learning_rate_);
+    for (auto &p : params_) {
+      ag_mlp::var_t g = grad(p);
+      ag_mlp::value_t update = p.value() - (lr * g.value());
+      p.update_in_place(update);
+    }
+  }
+
+  ag_mlp::value_t learning_rate_;
+  ag_mlp::vec_var_t params_;
+};
+
+struct optimizer_adam {
+  optimizer_adam(ag_mlp::vec_var_t params, ag_mlp::value_t lr = 0.001,
+                 ag_mlp::value_t beta1 = 0.9, ag_mlp::value_t beta2 = 0.99)
+      : learning_rate_(lr), params_(std::move(params)), beta1_(beta1),
+        beta2_(beta2), m_(params_.size()), v_(params_.size()), step_count_(0) {
+    for (auto const &p : params_) {
+      assert(p.is_alive());
+      assert(p.n().requires_grad_);
+    }
+  }
+
+  void zero_grad() { params_.front().t().zero_grad(); }
+
+  void step(std::optional<ag_mlp::value_t> maybe_lr = std::nullopt) {
+    static const ag_mlp::value_t eps = 1e-8;
+
+    ag_mlp::value_t const lr = maybe_lr.value_or(learning_rate_);
+    ag_mlp::vec_var_t const grads = get_grads(params_);
+    int t = step_count_ + 1;
+
+    for (size_t i = 0; i < params_.size(); ++i) {
+      ag_mlp::value_t const g = grads[i].value();
+
+      m_[i] = beta1_ * m_[i] + (1. - beta1_) * g;
+      v_[i] = beta2_ * v_[i] + (1. - beta2_) * g * g;
+
+      ag_mlp::value_t const m_hat = m_[i] / (1. - std::pow(beta1_, t));
+      ag_mlp::value_t const v_hat = v_[i] / (1. - std::pow(beta2_, t));
+
+      ag_mlp::value_t const update = lr * m_hat / (std::sqrt(v_hat) + eps);
+
+      params_[i].update_in_place(params_[i].value() - update);
+    }
+
+    ++step_count_;
+  }
+
+  ag_mlp::value_t learning_rate_;
+  ag_mlp::vec_var_t params_;
+  ag_mlp::value_t beta1_;
+  ag_mlp::value_t beta2_;
+  ag_mlp::vec_value_t m_;
+  ag_mlp::vec_value_t v_;
+  int step_count_ = 0;
+};
 } // namespace
 
 namespace {
@@ -2471,9 +2517,13 @@ void test_35() {
   using namespace aks;
 
   aks::vec_t<double_t> Xs = {2.0, 5.0, 7.0};
-  aks::vec_t<aks::vec_t<double_t>> expected = {{0.0496, 0.06, 0.12, 1.0, 0.16},
-                                               {0.0604, 0.06, 0.3, 1.0, 0.34},
-                                               {0.0676, 0.06, 0.42, 1.0, 0.46}};
+  aks::vec_t<aks::vec_t<double_t>> expected = {
+      {0.0496, 0.0584898391250499861, 0.116979678250099972, 1.0,
+       0.15864850429749891},
+      {0.0596486436885223167, 0.053565513353358199, 0.267827566766790981, 1.0,
+       0.327477394808705302},
+      {0.0658050526841187644, 0.0489016542661642462, 0.342311579863149751, 1.0,
+       0.430084211401979444}};
 
   mlp nn(1, {1, 1});
 
@@ -2582,7 +2632,7 @@ void test_36() {
     }
   }
 
-  AKS_CHECK_VALUE(losses.front(), 1.18089);
+  AKS_CHECK_VALUE(losses.front(), 1.44044531902545758);
   AKS_CHECK_VALUE(losses.back(), 0.0);
 }
 
@@ -2678,19 +2728,7 @@ void test_39() {
   using namespace aks;
   const double_t PI = std::numbers::pi_v<double_t>;
 
-  vec_t<double_t> Xs_temp = {-1.0,
-                             -0.7894736842105263,
-                             -0.5789473684210527,
-                             -0.368421052631579,
-                             -0.1578947368421053,
-                             0.05263157894736836,
-                             0.26315789473684204,
-                             0.4736842105263157,
-                             0.6842105263157894,
-                             0.894736842105263};
-  for (double_t &x : Xs_temp) {
-    x *= PI;
-  }
+  vec_t<double_t> Xs_temp = linspace(-3.0 * PI, 3.0 * PI, 100);
 
   vec_t<vec_t<double_t>> Xs;
   for (double_t const &x : Xs_temp) {
@@ -2702,9 +2740,8 @@ void test_39() {
     Ys.push_back({std::sin(x), std::cos(x)});
   }
 
-  double_t learning_rate = 0.1;
   size_t count = 0;
-  size_t const max_iterations = 10000;
+  size_t const max_iterations = 500;
   vec_t<double_t> losses;
 
   mlp nn(1, {8, 8, 2}, 55320);
@@ -2728,55 +2765,49 @@ void test_39() {
                          xs);
       },
       Ys);
+
+  ag_mlp::vec_vec_var_t xs = zipped_op(
+      [&](vec_t<double_t> xs) {
+        return zipped_op([&](double_t x) { return nn.tape.new_variable(x); },
+                         xs);
+      },
+      Xs);
+
   ag_mlp::vec_var_t buffer, pred;
   ag_mlp::vec_var_t x;
   ag_mlp::var_t loss;
   ag_mlp::vec_vec_var_t preds;
 
-  optimizer opt(&nn.tape, nn.parameters(), learning_rate);
+  optimizer_adam opt(nn.parameters(), 0.01);
 
   AKS_CHECK_VALUE(opt.params_.size(), 106);
 
   while (count++ < max_iterations) {
     if (!loss.is_alive()) {
-      for (size_t i = 0; i < Xs.size(); ++i) {
-        x.resize(Xs[i].size());
-        for (size_t j = 0; j < Xs[i].size(); ++j) {
-          x[j] = nn.tape.new_variable(Xs[i][j]);
-        }
-        nn.forward(x, pred, buffer);
+      for (size_t i = 0; i < xs.size(); ++i) {
+        nn.forward(xs[i], pred, buffer);
         preds.push_back(pred);
       }
       loss = loss_func(ys, preds);
-      opt.zero_grad();
-      aks::backward(loss);
+      build_gradients(loss);
     } else {
-      for (size_t i = 0; i < Xs.size(); ++i) {
-        for (size_t j = 0; j < Xs[i].size(); ++j) {
-          x[j].update_in_place(Xs[i][j]);
-        }
-        aks::forward(&nn.tape);
-      }
+      aks::forward(&nn.tape);
     }
 
     double_t const current_loss = loss.value();
-
     losses.push_back(current_loss);
-
-    if (count % 1000 == 0) {
-      if (learning_rate > 0.0001) {
-        learning_rate *= 0.99;
-      }
-    }
-
-    opt.step(learning_rate);
+    opt.step();
   }
 
-  // AKS_CHECK_VALUE(losses.front(), 0.475618744490630185);
-  // AKS_CHECK_VALUE(losses.back(), 0.0);
+  AKS_CHECK_VALUE(losses.front(), 0.503092665139643569);
+  AKS_CHECK_VALUE(losses.back(), 0.00535899045194129352);
 
-  AKS_CHECK_VALUE(losses.front(), 0.499967997191235);
-  AKS_CHECK_VALUE(losses.back(), 0.0);
+  if (false) {
+    std::cout << "L\n";
+    for (auto const &x : losses) {
+      std::cout << x << "\n";
+    }
+  }
 
   if (false) {
     mlp_inf nn_inf(nn);
@@ -3097,12 +3128,198 @@ void test_41() {
   }
 }
 
+void pinn_01(unsigned long long seed) {
+  std::cout << "pinn_01\n";
+
+  using namespace aks;
+  using namespace std;
+
+  using ag = autograd_traits<double_t>;
+
+  auto exact_solution = [](auto d, auto w0, auto t) {
+    assert(d < w0);
+    auto w = sqrt(pow(w0, 2.0) - pow(d, 2.0));
+    auto phi = atan(-d / w);
+    auto A = 1.0 / (2.0 * cos(phi));
+    auto cosine = cos(phi + w * t);
+    auto exponential = exp(-d * t);
+    auto u = exponential * 2 * A * cosine;
+    return u;
+  };
+
+  auto exact_solutions = [&](auto d, auto w0, ag::vec_value_t const &t) {
+    ag::vec_value_t u(t.size());
+    for (size_t i = 0; i < t.size(); ++i) {
+      u[i] = exact_solution(d, w0, t[i]);
+    }
+    return u;
+  };
+
+  size_t N_PHYSICS_POINTS = 50;
+
+  ag::vec_value_t t_boundary_v = {0.0};
+  ag::vec_value_t t_physics_v = linspace(0.0, 1.0, N_PHYSICS_POINTS);
+
+  ag::value_t d_v = 2.0;
+  ag::value_t w0_v = 20.0;
+  ag::value_t mu_v = 2 * d_v;
+  ag::value_t k_v = w0_v * w0_v;
+  ag::value_t lambda1_v = 1e-1;
+  ag::value_t lambda2_v = 1e-4;
+
+  mlp pinn_train(1, {32, 32, 32, 1}, seed);
+
+  ag::vec_var_t pred_outputs;
+  ag::vec_var_t buffer;
+
+  auto predict = [&](mlp &pinn, ag::vec_var_t const &t) {
+    ag::vec_var_t preds;
+    pred_outputs.clear();
+    buffer.clear();
+    preds.reserve(t.size());
+    for (auto const &x : t) {
+      pinn.forward({x}, pred_outputs, buffer);
+      preds.push_back(pred_outputs.front());
+    }
+    return preds;
+  };
+
+  ag::tape_t &tape = pinn_train.tape;
+
+  auto to_tape = [&](ag::vec_value_t const &vs, bool requires_grad = false) {
+    return put_on_tape(&tape, vs, requires_grad);
+  };
+
+  auto var = [&](ag::value_t v, bool requires_grad = false) {
+    return tape.new_variable(v, requires_grad);
+  };
+
+  ag::vec_value_t t_test_v = linspace(0.0, 1.0, 100);
+  ag::vec_value_t u_exact_v = exact_solutions(d_v, w0_v, t_test_v);
+
+  auto print_solutions = [&](mlp_inf const &mlpi, size_t S,
+                             ag_mlp::value_t current_loss) {
+    std::cout << "---------" << S << ":" << current_loss << std::endl;
+    std::cout << "t,u,p\n";
+    for (size_t i = 0; i < t_test_v.size(); ++i) {
+      std::cout << t_test_v[i] << "," << u_exact_v[i] << ","
+                << mlpi.forward({t_test_v[i]}).front() << "\n";
+    }
+    std::cout << "#####################" << std::endl;
+  };
+
+  auto d = var(d_v);
+  auto w0 = var(w0_v);
+  auto mu = var(mu_v);
+  auto k = var(k_v);
+  auto lambda1 = var(lambda1_v);
+  auto lambda2 = var(lambda2_v);
+
+  auto t_boundary = to_tape(t_boundary_v, true);
+  auto t_physics = to_tape(t_physics_v, true);
+
+  auto loss_fn = [&](mlp &pinn, ag::vec_var_t const &t_boundary,
+                     ag::vec_var_t const &t_physics) {
+    ag::var_t loss1, loss2, loss3;
+    {
+      ag::vec_var_t u = predict(pinn, t_boundary);
+      loss1 = pow((u[0] - 1.0), 2.0);
+      ag::vec_var_t dudt = gradient(u, t_boundary);
+      loss2 = pow(dudt[0], 2.0);
+    }
+    {
+      ag::vec_var_t us = predict(pinn, t_physics);
+      ag::vec_var_t dudts = gradient(us, t_physics);
+      ag::vec_var_t d2udt2s = gradient(dudts, t_physics);
+
+      auto physics_loss = [&](ag::var_t d2udt2, ag::var_t dudt, ag::var_t u) {
+        return pow((d2udt2 + mu * dudt + k * u), 2.0);
+      };
+
+      ag::vec_var_t physics_losses =
+          zipped_op(physics_loss, d2udt2s, dudts, us);
+
+      loss3 = mean(physics_losses);
+    }
+    ag::var_t loss = loss1 + lambda1 * loss2 + lambda2 * loss3;
+
+    return loss;
+  };
+
+  optimizer_adam opt(pinn_train.parameters(), 1e-3);
+
+  size_t const max_iterations = 25001;
+
+  ag::var_t loss;
+
+  ag::vec_value_t losses;
+  losses.reserve(max_iterations);
+
+  ag_mlp::value_t minimum_loss = 1e10;
+
+  std::unique_ptr<std::tuple<mlp_inf, size_t, ag_mlp::value_t>> best_so_far;
+
+  for (size_t i = 0; i < max_iterations; ++i) {
+
+    if (!loss.is_alive()) {
+      opt.zero_grad();
+      loss = loss_fn(pinn_train, t_boundary, t_physics);
+      build_gradients(loss);
+    } else {
+      aks::forward(&pinn_train.tape);
+    }
+
+    ag_mlp::value_t current_loss = loss.value();
+
+    if (current_loss <= 1e-5) {
+      AKS_PRINT("breaking at:" << i << " : " << current_loss);
+      break;
+    }
+
+    if (i % 100 == 0) {
+      AKS_PRINT_AS("status=", seed << " : " << i << " : " << current_loss
+                                   << " : " << minimum_loss << " ###");
+    }
+
+    if (current_loss < minimum_loss) {
+      minimum_loss = current_loss;
+      best_so_far =
+          std::make_unique<std::tuple<mlp_inf, size_t, ag_mlp::value_t>>(
+              pinn_train, i, current_loss);
+    }
+
+    if (i % 2500 == 0) {
+      if (best_so_far) {
+        print_solutions(std::get<0>(*best_so_far), std::get<1>(*best_so_far),
+                        std::get<2>(*best_so_far));
+      }
+    }
+
+    losses.push_back(current_loss);
+    opt.step();
+  }
+
+  if (true) {
+    std::cout << "__LOSS__" << std::endl;
+    for (auto const &x : losses) {
+      std::cout << x << "\n";
+    }
+    std::cout << "<<<<<>>>>>" << std::endl;
+  }
+
+  print_solutions(mlp_inf(pinn_train), max_iterations, losses.back());
+
+  if (best_so_far) {
+    print_solutions(std::get<0>(*best_so_far), std::get<1>(*best_so_far),
+                    std::get<2>(*best_so_far));
+  }
+}
+
 int main_tests() {
+  // pinn_01(1987);
   test_41();
   test_40();
-#ifdef NDEBUG
   test_39();
-#endif
   test_38();
   test_37();
   test_36();
@@ -3157,3 +3374,113 @@ int main() {
   main_tests();
   return 0;
 }
+
+/////////////////
+/*
+pinn_01 output:
+
+final loss: 0.000201226557623753
+
+t,u,p
+0,1,0.999645308585859
+0.0101010101010101,0.979934192824085,0.979320137323365
+0.0202020202020202,0.921600025304856,0.920133395195409
+0.0303030303030303,0.828838238393807,0.826566656961474
+0.0404040404040404,0.706709866746521,0.703947483077554
+0.0505050505050505,0.561246169591732,0.558166089942834
+0.0606060606060606,0.399169788120904,0.395865914440378
+0.0707070707070707,0.227599384242802,0.224235031944441
+0.0808080808080808,0.0537501887512008,0.0505226005431934
+0.0909090909090909,-0.115357442118101,-0.118298989992824
+0.101010101010101,-0.27317016110525,-0.275712165251558
+0.111111111111111,-0.413844371886021,-0.415883610251835
+0.121212121212121,-0.532451066096851,-0.533908238794181
+0.131313131313131,-0.625136091029264,-0.625962400504203
+0.141414141414141,-0.689231224158175,-0.68941014384828
+0.151515151515152,-0.723313574744668,-0.722874741693007
+0.161616161616162,-0.727212990777521,-0.726224024095899
+0.171717171717172,-0.701969234911881,-0.700499764726553
+0.181818181818182,-0.649742625574311,-0.647862343021252
+0.191919191919192,-0.573683548049729,-0.571510764269857
+0.202020202020202,-0.477767665900633,-0.475471622423263
+0.212121212121212,-0.366604759877639,-0.364318856727786
+0.222222222222222,-0.24522985885788,-0.243023315676513
+0.232323232323232,-0.118885690133265,-0.11686522087413
+0.242424242424242,0.00719453506420635,0.00886110076888017
+0.252525252525253,0.127995355293637,0.129211355388735
+0.262626262626263,0.238910366734892,0.239682075525999
+0.272727272727273,0.335909649290593,0.336221684204594
+0.282828282828283,0.41567758256889,0.41547184627712
+0.292929292929293,0.475716730534978,0.475003821980383
+0.303030303030303,0.514414997332217,0.513299475116326
+0.313131313131313,0.531074831665661,0.529661064480389
+0.323232323232323,0.525904818405791,0.524240763016487
+0.333333333333333,0.499975482011252,0.498102586836918
+0.343434343434343,0.455142480735527,0.453170533697239
+0.353535353535354,0.393941544594926,0.392057031852672
+0.363636363636364,0.319460464076474,0.317862464136798
+0.373737373737374,0.235194141237126,0.234016936891588
+0.383838383838384,0.144889151973139,0.144169957636998
+0.393939393939394,0.0523844309896039,0.0520916100672875
+0.404040404040404,-0.0385454162476137,-0.0384515457682722
+0.414141414141414,-0.124338032575168,-0.123856170122094
+0.424242424242424,-0.20177690998008,-0.200858042011828
+0.434343434343434,-0.268105913508106,-0.266689729857266
+0.444444444444444,-0.32112091840833,-0.319190834049509
+0.454545454545455,-0.359235813884714,-0.356860291558271
+0.464646464646465,-0.381521257407469,-0.378859760873375
+0.474747474747475,-0.38771571377002,-0.384987569475372
+0.484848484848485,-0.378209436331111,-0.375641536839193
+0.494949494949495,-0.35400310044867,-0.351779950206578
+0.505050505050505,-0.316643741833135,-0.314879312359992
+0.515151515151515,-0.268141452193349,-0.266880480120297
+0.525252525252525,-0.210870914907253,-0.210114001666338
+0.535353535353535,-0.147462306098182,-0.14720026837422
+0.545454545454546,-0.080686331223357,-0.0809276044013907
+0.555555555555556,-0.0133382121662896,-0.0141180276129254
+0.565656565656566,0.0518747090066814,0.0505063093004555
+0.575757575757576,0.112437412409651,0.110443466417879
+0.585858585858586,0.166119840416324,0.163509492244621
+0.595959595959596,0.211054509915195,0.207908726850753
+0.606060606060606,0.245796597979442,0.242276389957333
+0.616161616161616,0.269364799796947,0.265697240423286
+0.626262626262626,0.281262091541282,0.277706710216818
+0.636363636363636,0.281476366254908,0.278281427412754
+0.646464646464647,0.270461714398622,0.267824147620411
+0.656565656565657,0.249101861723028,0.247144226974041
+0.666666666666667,0.218657928478031,0.217430184251301
+0.676767676767677,0.180703213279906,0.180207614547968
+0.686868686868687,0.137048115141279,0.137275773106511
+0.696969696969697,0.0896585769993553,0.090620495952645
+0.707070707070707,0.0405715583533839,0.0423085863413314
+0.717171717171717,-0.0081889758462563,-0.00562391099804726
+0.727272727272727,-0.0546922215805153,-0.0512737935288881
+0.737373737373737,-0.097173814003792,-0.0929499614854917
+0.747474747474748,-0.13409956922966,-0.129223936364205
+0.757575757575758,-0.164217526363987,-0.15895412599706
+0.767676767676768,-0.186596678538027,-0.181292265691462
+0.777777777777778,-0.200651376111355,-0.195682131102255
+0.787878787878788,-0.206150996627322,-0.201858368825472
+0.797979797979798,-0.203215079466504,-0.199848787618706
+0.808080808080808,-0.192294694723344,-0.189978567688092
+0.818181818181818,-0.174141334101702,-0.172871017288005
+0.828282828282828,-0.149765058037489,-0.149437610925814
+0.838383838383838,-0.120383992861335,-0.120850473727409
+0.848484848484849,-0.0873675337137427,-0.0884931720693802
+0.858585858585859,-0.0521757665485944,-0.053890060140944
+0.868686868686869,-0.016297673753844,-0.0186194208898832
+0.878787878787879,0.0188093651452719,0.0157801861840579
+0.888888888888889,0.0517764173114904,0.0478988817990578
+0.898989898989899,0.0813740637459811,0.0765289008544263
+0.909090909090909,0.106555882832081,0.100714790394492
+0.919191919191919,0.126492917196481,0.119777156880372
+0.929292929292929,0.140598106990325,0.133311262923838
+0.939393939393939,0.148540112927277,0.141165185854958
+0.94949494949495,0.150246398204901,0.143404022714723
+0.95959595959596,0.145895871789335,0.14026681857276
+0.96969696969697,0.135901799678891,0.132121954002646
+0.97979797979798,0.120886050727007,0.11942521618257
+0.98989898989899,0.101646046798662,0.102683175481957
+1,0.0791160236189627,0.0824231021420369
+
+*/
