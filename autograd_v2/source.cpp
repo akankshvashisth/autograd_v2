@@ -3131,6 +3131,8 @@ void test_41() {
 void pinn_01(unsigned long long seed) {
   std::cout << "pinn_01\n";
 
+  // https://github.com/benmoseley/DLSC-2023/blob/main/lecture-5/PINN%20demo.ipynb
+
   using namespace aks;
   using namespace std;
 
@@ -3316,6 +3318,8 @@ void pinn_01(unsigned long long seed) {
 }
 
 void pinn_02(unsigned long long seed) {
+
+  // https://github.com/Ceyron/machine-learning-and-simulation/blob/main/english/physics_informed_neural_networks/poisson_pinn_in_jax_equinox.ipynb
 
   using namespace aks;
   using namespace std;
