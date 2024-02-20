@@ -1601,10 +1601,9 @@ template <typename real_t> struct equal_to<aks::var_t<real_t>> {
 
 namespace aks {
 template <typename real_t>
-aks::vec_t<aks::var_t<real_t>> put_on_tape(aks::tape_t<real_t> *tape,
-                                           aks::vec_t<real_t> const &xs,
-                                           bool requires_grad = false) {
-  aks::vec_t<aks::var_t<real_t>> ret;
+vec_t<var_t<real_t>> put_on_tape(tape_t<real_t> *tape, vec_t<real_t> const &xs,
+                                 bool requires_grad = false) {
+  vec_t<var_t<real_t>> ret;
   ret.reserve(xs.size());
   for (auto const &x : xs) {
     ret.push_back(tape->new_variable(x, requires_grad));
@@ -1613,8 +1612,8 @@ aks::vec_t<aks::var_t<real_t>> put_on_tape(aks::tape_t<real_t> *tape,
 }
 
 template <typename real_t>
-aks::vec_t<real_t> get_values(aks::vec_t<aks::var_t<real_t>> const &xs) {
-  aks::vec_t<real_t> ret;
+vec_t<real_t> get_values(vec_t<var_t<real_t>> const &xs) {
+  vec_t<real_t> ret;
   ret.reserve(xs.size());
   for (auto const &x : xs) {
     assert(x.is_alive());
@@ -1624,68 +1623,65 @@ aks::vec_t<real_t> get_values(aks::vec_t<aks::var_t<real_t>> const &xs) {
 }
 
 template <typename real_t>
-aks::vec_t<aks::var_t<real_t>>
-get_grads(aks::vec_t<aks::var_t<real_t>> const &xs) {
-  aks::vec_t<aks::var_t<real_t>> ret;
+vec_t<var_t<real_t>> get_grads(vec_t<var_t<real_t>> const &xs) {
+  vec_t<var_t<real_t>> ret;
   ret.reserve(xs.size());
   for (auto const &x : xs) {
     assert(x.is_alive());
     assert(x.requires_grad());
-    ret.push_back(aks::grad(x));
+    ret.push_back(grad(x));
   }
   return ret;
 }
 
 template <typename real_t>
-aks::map_t<aks::var_t<real_t>, aks::var_t<real_t>>
-get_grads_map(aks::vec_t<aks::var_t<real_t>> const &xs) {
-  aks::map_t<aks::var_t<real_t>, aks::var_t<real_t>> ret;
+map_t<var_t<real_t>, var_t<real_t>>
+get_grads_map(vec_t<var_t<real_t>> const &xs) {
+  map_t<var_t<real_t>, var_t<real_t>> ret;
   ret.reserve(xs.size());
   for (auto const &x : xs) {
     assert(x.is_alive());
     assert(x.requires_grad());
-    ret[x] = aks::grad(x);
+    ret[x] = grad(x);
   }
   return ret;
 }
 
 template <typename real_t, typename... var_ts>
-auto get_grads(aks::var_t<real_t> x, var_ts... xs) {
-  return std::make_tuple(aks::grad(x), aks::grad(xs)...);
+auto get_grads(var_t<real_t> x, var_ts... xs) {
+  return std::make_tuple(grad(x), grad(xs)...);
 }
 
-template <typename real_t> void build_gradients(aks::var_t<real_t> f) {
+template <typename real_t> void build_gradients(var_t<real_t> f) {
   assert(f.is_alive());
   assert(f.requires_grad());
   f.t().zero_grad();
-  aks::backward(f);
+  backward(f);
 }
 
 template <typename real_t>
-aks::var_t<real_t> gradient(aks::var_t<real_t> f, aks::var_t<real_t> x) {
+var_t<real_t> gradient(var_t<real_t> f, var_t<real_t> x) {
   build_gradients(f);
-  return aks::grad(x);
+  return grad(x);
 }
 
 template <typename real_t, typename... vars>
-auto gradient(aks::var_t<real_t> f, aks::var_t<real_t> x, vars... xs) {
+auto gradient(var_t<real_t> f, var_t<real_t> x, vars... xs) {
   build_gradients(f);
   return get_grads(x, xs...);
 }
 
 template <typename real_t>
-aks::vec_t<aks::var_t<real_t>>
-gradient(aks::var_t<real_t> f, aks::vec_t<aks::var_t<real_t>> const &xs) {
+vec_t<var_t<real_t>> gradient(var_t<real_t> f, vec_t<var_t<real_t>> const &xs) {
   build_gradients(f);
   return get_grads(xs);
 }
 
 template <typename real_t>
-aks::vec_t<aks::vec_t<aks::var_t<real_t>>>
-gradient(aks::var_t<real_t> f,
-         aks::vec_t<aks::vec_t<aks::var_t<real_t>>> const &xss) {
+vec_t<vec_t<var_t<real_t>>> gradient(var_t<real_t> f,
+                                     vec_t<vec_t<var_t<real_t>>> const &xss) {
   build_gradients(f);
-  aks::vec_t<aks::vec_t<aks::var_t<real_t>>> ret;
+  vec_t<vec_t<var_t<real_t>>> ret;
   ret.reserve(xss.size());
   for (auto const &xs : xss) {
     ret.emplace_back(get_grads(xs));
@@ -1694,10 +1690,9 @@ gradient(aks::var_t<real_t> f,
 }
 
 template <typename real_t>
-aks::vec_t<aks::var_t<real_t>>
-gradient(aks::vec_t<aks::var_t<real_t>> const &fs,
-         aks::vec_t<aks::var_t<real_t>> const &xs) {
-  aks::vec_t<aks::var_t<real_t>> ret;
+vec_t<var_t<real_t>> gradient(vec_t<var_t<real_t>> const &fs,
+                              vec_t<var_t<real_t>> const &xs) {
+  vec_t<var_t<real_t>> ret;
   ret.reserve(fs.size());
   assert(fs.size() == xs.size());
   for (size_t i = 0; i < fs.size(); ++i) {
@@ -1707,17 +1702,16 @@ gradient(aks::vec_t<aks::var_t<real_t>> const &fs,
 }
 
 template <typename real_t>
-aks::map_t<aks::var_t<real_t>, aks::var_t<real_t>>
-gradient_map(aks::var_t<real_t> f, aks::vec_t<aks::var_t<real_t>> const &xs) {
+map_t<var_t<real_t>, var_t<real_t>>
+gradient_map(var_t<real_t> f, vec_t<var_t<real_t>> const &xs) {
   build_gradients(f);
   return get_grads_map(xs);
 }
 
 template <typename real_t>
-aks::map_t<aks::var_t<real_t>, aks::var_t<real_t>>
-gradient_map(aks::vec_t<aks::var_t<real_t>> const &fs,
-             aks::vec_t<aks::var_t<real_t>> const &xs) {
-  aks::map_t<aks::var_t<real_t>, aks::var_t<real_t>> ret;
+map_t<var_t<real_t>, var_t<real_t>>
+gradient_map(vec_t<var_t<real_t>> const &fs, vec_t<var_t<real_t>> const &xs) {
+  map_t<var_t<real_t>, var_t<real_t>> ret;
 
   assert(fs.size() == xs.size());
   for (size_t i = 0; i < fs.size(); ++i) {
@@ -1725,4 +1719,23 @@ gradient_map(aks::vec_t<aks::var_t<real_t>> const &fs,
   }
   return ret;
 }
+
+template <typename real_t>
+var_t<real_t> higher_order_gradient(var_t<real_t> f, var_t<real_t> x,
+                                    size_t order) {
+  for (size_t i = 0; i < order; ++i) {
+    f = gradient(f, x);
+  }
+  return f;
+}
+
+template <typename real_t>
+var_t<real_t> higher_order_gradient(
+    var_t<real_t> f, std::vector<std::tuple<var_t<real_t>, size_t>> const &xs) {
+  for (auto const &[x, order] : xs) {
+    f = higher_order_gradient(f, x, order);
+  }
+  return f;
+}
+
 } // namespace aks
