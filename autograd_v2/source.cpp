@@ -1207,15 +1207,10 @@ void test_20() {
     ag_d::tape_context_t context(t);
     ag_d::var_t f = (x * y * z) ^ ag_d::value_t(4.0);
 
-    for (size_t k = 0; k < K; ++k) {
-      f = gradient(f, z);
-    }
-    for (size_t j = 0; j < J; ++j) {
-      f = gradient(f, y);
-    }
-    for (size_t i = 0; i < I; ++i) {
-      f = gradient(f, x);
-    }
+    f = higher_order_gradient(f, z, K);
+    f = higher_order_gradient(f, y, J);
+    f = higher_order_gradient(f, x, I);
+
     ag_d::value_t result = f.value();
     return result;
   };
@@ -1304,15 +1299,8 @@ void test_21() {
     ag_d::tape_context_t ctx(t);
     ag_d::var_t f = ((z + (x * y)) ^ ag_d::value_t(4.0)) /
                     ((z - ((x * y) ^ ag_d::value_t(4.0))));
-    for (size_t k = 0; k < K; ++k) {
-      f = gradient(f, z);
-    }
-    for (size_t j = 0; j < J; ++j) {
-      f = gradient(f, y);
-    }
-    for (size_t i = 0; i < I; ++i) {
-      f = gradient(f, x);
-    }
+
+    f = higher_order_gradient(f, {{z, K}, {y, J}, {x, I}});
 
     ag_d::value_t result = f.value();
     return result;
@@ -2842,6 +2830,38 @@ void test_41() {
     AKS_CHECK_VARIABLE(gs[x], 16.0);
     AKS_CHECK_VARIABLE(gs[y], 16.0);
     AKS_CHECK_VARIABLE(gs[z], 133.084258667509488);
+  }
+
+  {
+    ag::tape_context_t context(tape);
+
+    ag::var_t x = var(1., true);
+
+    AKS_CHECK_VARIABLE(x, 1.);
+
+    ag::var_t fx = x ^ 4.;
+
+    AKS_CHECK_VARIABLE(fx, 1.);
+
+    ag::var_t d3fdx3 = gradient(gradient(gradient(fx, x), x), x);
+
+    AKS_CHECK_VARIABLE(d3fdx3, 24.);
+  }
+
+  {
+    ag::tape_context_t context(tape);
+
+    ag::var_t x = var(1., true);
+
+    AKS_CHECK_VARIABLE(x, 1.);
+
+    ag::var_t fx = x ^ 4.;
+
+    AKS_CHECK_VARIABLE(fx, 1.);
+
+    ag::var_t d3fdx3 = higher_order_gradient(fx, x, 3);
+
+    AKS_CHECK_VARIABLE(d3fdx3, 24.);
   }
 
   {
