@@ -554,9 +554,7 @@ void test_01() {
                                      181440, 120960, 40320, 0};
 
     for (int i = 0; i < 9; ++i) {
-      t.zero_grad();
-      backward(f);
-      f = grad(x);
+      f = gradient(f, x);
       AKS_CHECK_VARIABLE(f, expected[i]);
     }
     AKS_CHECK_PRINT(t.nodes_.size(), t.nodes_.size(), 11717);
@@ -571,9 +569,7 @@ void test_01() {
                                      0,     0,     0,     0};
     AKS_CHECK_VARIABLE(f, 28125);
     for (int i = 0; i < 9; ++i) {
-      t.zero_grad();
-      backward(f);
-      f = grad(y);
+      f = gradient(f, y);
       AKS_CHECK_VARIABLE(f, expected[i]);
     }
     AKS_CHECK_PRINT(t.nodes_.size(), t.nodes_.size(), 1038);
@@ -589,9 +585,7 @@ void test_01() {
     AKS_CHECK_VARIABLE(f, 0.36);
 
     for (int i = 0; i < 5; ++i) {
-      t.zero_grad();
-      backward(f);
-      f = grad(y);
+      f = gradient(f, y);
       AKS_CHECK_VARIABLE(f, expected[i]);
     }
     AKS_CHECK_PRINT(t.nodes_.size(), t.nodes_.size(), 766);
@@ -619,9 +613,7 @@ void test_02() {
                                    181440, 120960, 40320, 0};
 
   for (int i = 0; i < 9; ++i) {
-    t.zero_grad();
-    backward(f);
-    f = grad(x);
+    f = gradient(f, x);
     AKS_CHECK_VARIABLE(f, expected[i]);
   }
   AKS_CHECK_PRINT(t.nodes_.size(), t.nodes_.size(), 73);
@@ -647,9 +639,7 @@ void test_02_f() {
                                    181440, 120960, 40320, 0};
 
   for (int i = 0; i < 9; ++i) {
-    t.zero_grad();
-    backward(f);
-    f = grad(x);
+    f = gradient(f, x);
     AKS_CHECK_VARIABLE(f, expected[i]);
   }
   AKS_CHECK_PRINT(t.nodes_.size(), t.nodes_.size(), 73);
@@ -672,9 +662,7 @@ void test_03() {
                                    181440, 120960, 40320, 0};
 
   for (int i = 0; i < 9; ++i) {
-    t.zero_grad();
-    backward(f);
-    f = grad(x);
+    f = gradient(f, x);
     AKS_CHECK_VARIABLE(f, expected[i]);
   }
   AKS_CHECK_PRINT(t.nodes_.size(), t.nodes_.size(), 73);
@@ -696,9 +684,7 @@ void test_04() {
   vec_t<ag_d::value_t> expected = {1, 0, 0};
 
   for (int i = 0; i < 3; ++i) {
-    t.zero_grad();
-    backward(f);
-    f = grad(x);
+    f = gradient(f, x);
     AKS_CHECK_VARIABLE(f, expected[i]);
   }
   AKS_CHECK_PRINT(t.nodes_.size(), t.nodes_.size(), 184);
@@ -723,9 +709,7 @@ void test_05() {
       848181.148608, 6213971.481006121, 48615295.31226263};
 
   for (int i = 0; i < 9; ++i) {
-    t.zero_grad();
-    backward(f);
-    f = grad(x);
+    f = gradient(f, x);
     AKS_CHECK_VARIABLE(f, expected[i]);
   }
   AKS_CHECK_PRINT(t.nodes_.size(), t.nodes_.size(), 16669);
@@ -748,9 +732,7 @@ void test_06_01() {
   vec_t<ag_d::value_t> expected = {0, -1, 0, 1, 0, -1, 0, 1, 0};
 
   for (int i = 0; i < 9; ++i) {
-    t.zero_grad();
-    backward(f);
-    f = grad(x);
+    f = gradient(f, x);
     AKS_CHECK_VARIABLE(f, expected[i]);
   }
   AKS_CHECK_PRINT(t.nodes_.size(), t.nodes_.size(), 49);
@@ -773,9 +755,7 @@ void test_06_02() {
   vec_t<ag_d::value_t> expected = {-1, 0, 1, 0, -1, 0, 1, 0, -1};
 
   for (int i = 0; i < 9; ++i) {
-    t.zero_grad();
-    backward(f);
-    f = grad(x);
+    f = gradient(f, x);
     AKS_CHECK_VARIABLE(f, expected[i]);
   }
   AKS_CHECK_PRINT(t.nodes_.size(), t.nodes_.size(), 51);
@@ -803,10 +783,7 @@ void test_07() {
       -1.213075727292083, -63.66425006790054, 463.4642048661533};
 
   for (int i = 0; i < 9; ++i) {
-    t.zero_grad();
-    backward(f);
-    f = grad(x);
-    // AKS_PRINT(f);
+    f = gradient(f, x);
     AKS_CHECK_VARIABLE(f, expected[i]);
   }
   AKS_CHECK_PRINT(t.nodes_.size(), t.nodes_.size(), 948883);
@@ -835,9 +812,7 @@ void test_08() {
       157615.1751647243, 218966.3917658434, 304763.4639907167};
 
   for (int i = 0; i < 9; ++i) {
-    t.zero_grad();
-    backward(f);
-    f = grad(x);
+    f = gradient(f, x);
     AKS_CHECK_VARIABLE(f, expected[i]);
   }
   AKS_CHECK_PRINT(t.nodes_.size(), t.nodes_.size(), 42734);
@@ -867,9 +842,7 @@ void test_09() {
       1.943245437957466, -3.596458737095583, -1.901001142886110};
 
   for (int i = 0; i < 9; ++i) {
-    t.zero_grad();
-    backward(f);
-    f = grad(x);
+    f = gradient(f, x);
     AKS_CHECK_VARIABLE(f, expected[i]);
   }
   AKS_CHECK_PRINT(t.nodes_.size(), t.nodes_.size(), 64625);
@@ -898,9 +871,7 @@ void test_10() {
       157615.1751647243, 218966.3917658434, 304763.4639907167};
 
   for (int i = 0; i < 9; ++i) {
-    t.zero_grad();
-    backward(f);
-    f = grad(x);
+    f = gradient(f, x);
     AKS_CHECK_VARIABLE(f, expected[i]);
   }
   AKS_CHECK_PRINT(t.nodes_.size(), t.nodes_.size(), 42735);
@@ -922,9 +893,7 @@ void test_11() {
   vec_t<ag_d::value_t> expected = {1, 0, 0};
 
   for (int i = 0; i < 3; ++i) {
-    t.zero_grad();
-    backward(f);
-    f = grad(x);
+    f = gradient(f, x);
     AKS_CHECK_VARIABLE(f, expected[i]);
   }
   AKS_CHECK_PRINT(t.nodes_.size(), t.nodes_.size(), 15);
@@ -946,9 +915,7 @@ void test_12() {
   vec_t<ag_d::value_t> expected = {0, 0, 0};
 
   for (int i = 0; i < 3; ++i) {
-    t.zero_grad();
-    backward(f);
-    f = grad(x);
+    f = gradient(f, x);
     AKS_CHECK_VARIABLE(f, expected[i]);
   }
   AKS_CHECK_PRINT(t.nodes_.size(), t.nodes_.size(), 15);
@@ -979,9 +946,7 @@ void test_13() {
       120670307539.7625, 416043043171.6418, 1381489125066.02686};
 
   for (int i = 0; i < 9; ++i) {
-    t.zero_grad();
-    backward(f);
-    f = grad(x);
+    f = gradient(f, x);
     AKS_CHECK_VARIABLE(f, expected[i]);
   }
   AKS_CHECK_PRINT(t.nodes_.size(), t.nodes_.size(), 193502);
@@ -1011,9 +976,7 @@ void test_14() {
                                    -172271.1423942442, 4465339.597362671};
 
   for (int i = 0; i < 8; ++i) {
-    t.zero_grad();
-    backward(f);
-    f = grad(x);
+    f = gradient(f, x);
     AKS_CHECK_VARIABLE(f, expected[i]);
   }
   AKS_CHECK_PRINT(t.nodes_.size(), t.nodes_.size(), 72391);
@@ -1050,9 +1013,7 @@ void test_15() {
                                      5081703.820602682, 25346219.35630465};
 
     for (int i = 0; i < 8; ++i) {
-      t.zero_grad();
-      backward(f);
-      f = grad(x);
+      f = gradient(f, x);
       AKS_CHECK_VARIABLE(f, expected[i]);
     }
     AKS_CHECK_PRINT(t.nodes_.size(), t.nodes_.size(), 259994);
@@ -1071,9 +1032,7 @@ void test_15() {
                                      868833.1020929292, 2754733.9246692426};
 
     for (int i = 0; i < 4; ++i) {
-      t.zero_grad();
-      backward(f);
-      f = grad(y);
+      f = gradient(f, y);
       AKS_CHECK_VARIABLE(f, expected[i]);
     }
     AKS_CHECK_PRINT(t.nodes_.size(), t.nodes_.size(), 2084);
@@ -1093,9 +1052,7 @@ void test_15() {
                                      1006.296282742556};
 
     for (int i = 0; i < 5; ++i) {
-      t.zero_grad();
-      backward(f);
-      f = grad(z);
+      f = gradient(f, z);
       AKS_CHECK_VARIABLE(f, expected[i]);
     }
     AKS_CHECK_PRINT(t.nodes_.size(), t.nodes_.size(), 2484);
@@ -1138,9 +1095,7 @@ void test_16() {
         3303014.400, 1321205.760, 264241.1520, 0,       0};
 
     for (int i = 0; i < 8; ++i) {
-      t.zero_grad();
-      backward(f);
-      f = grad(x);
+      f = gradient(f, x);
       AKS_CHECK_VARIABLE(f, expected[i]);
     }
     AKS_CHECK_PRINT(t.nodes_.size(), t.nodes_.size(), 11306);
@@ -1163,9 +1118,7 @@ void test_16() {
         3303014.400, 1321205.760, 264241.1520, 0,       0};
 
     for (int i = 0; i < 10; ++i) {
-      t.zero_grad();
-      backward(f);
-      f = grad(y);
+      f = gradient(f, y);
       AKS_CHECK_VARIABLE(f, expected[i]);
     }
     AKS_CHECK_PRINT(t.nodes_.size(), t.nodes_.size(), 17141);
@@ -1188,9 +1141,7 @@ void test_16() {
                                      0,        0};
 
     for (int i = 0; i < 10; ++i) {
-      t.zero_grad();
-      backward(f);
-      f = grad(z);
+      f = gradient(f, z);
       AKS_CHECK_VARIABLE(f, expected[i]);
     }
     AKS_CHECK_PRINT(t.nodes_.size(), t.nodes_.size(), 17129);
@@ -1239,10 +1190,7 @@ void test_17() {
         4609920};
 
     for (int i = 0; i < 7; ++i) {
-      t.zero_grad();
-      backward(f);
-      f = grad(x);
-      // AKS_PRINT(f);
+      f = gradient(f, x);
       AKS_CHECK_VARIABLE(f, expected[i]);
     }
     AKS_CHECK_PRINT(t.nodes_.size(), t.nodes_.size(), 20686);
@@ -1266,9 +1214,7 @@ void test_17() {
                                      -3670.855052583448};
 
     for (int i = 0; i < 7; ++i) {
-      t.zero_grad();
-      backward(f);
-      f = grad(y);
+      f = gradient(f, y);
       AKS_CHECK_VARIABLE(f, expected[i]);
     }
     AKS_CHECK_PRINT(t.nodes_.size(), t.nodes_.size(), 20674);
@@ -1292,9 +1238,7 @@ void test_17() {
         -131250};
 
     for (int i = 0; i < 7; ++i) {
-      t.zero_grad();
-      backward(f);
-      f = grad(z);
+      f = gradient(f, z);
       AKS_CHECK_VARIABLE(f, expected[i]);
     }
     AKS_CHECK_PRINT(t.nodes_.size(), t.nodes_.size(), 20698);
@@ -1323,10 +1267,7 @@ void test_18() {
                                    0.669408525907504,  -6.722648455610035};
 
   for (int i = 0; i < 8; ++i) {
-    t.zero_grad();
-    backward(f);
-    f = grad(x);
-    // AKS_PRINT(f);
+    f = gradient(f, x);
     AKS_CHECK_VARIABLE(f, expected[i]);
   }
   AKS_CHECK_PRINT(t.nodes_.size(), t.nodes_.size(), 308828);
@@ -1408,20 +1349,14 @@ void test_20() {
     ag_d::tape_context_t context(t);
     ag_d::var_t f = (x * y * z) ^ ag_d::value_t(4.0);
 
-    for (size_t i = 0; i < I; ++i) {
-      t.zero_grad();
-      backward(f);
-      f = grad(x);
+    for (size_t k = 0; k < K; ++k) {
+      f = gradient(f, z);
     }
     for (size_t j = 0; j < J; ++j) {
-      t.zero_grad();
-      backward(f);
-      f = grad(y);
+      f = gradient(f, y);
     }
-    for (size_t k = 0; k < K; ++k) {
-      t.zero_grad();
-      backward(f);
-      f = grad(z);
+    for (size_t i = 0; i < I; ++i) {
+      f = gradient(f, x);
     }
     ag_d::value_t result = f.value();
     return result;
@@ -1512,19 +1447,13 @@ void test_21() {
     ag_d::var_t f = ((z + (x * y)) ^ ag_d::value_t(4.0)) /
                     ((z - ((x * y) ^ ag_d::value_t(4.0))));
     for (size_t k = 0; k < K; ++k) {
-      t.zero_grad();
-      backward(f);
-      f = grad(z);
+      f = gradient(f, z);
     }
     for (size_t j = 0; j < J; ++j) {
-      t.zero_grad();
-      backward(f);
-      f = grad(y);
+      f = gradient(f, y);
     }
     for (size_t i = 0; i < I; ++i) {
-      t.zero_grad();
-      backward(f);
-      f = grad(x);
+      f = gradient(f, x);
     }
 
     ag_d::value_t result = f.value();
@@ -1566,9 +1495,13 @@ void test_22() {
 
   ag_d::tape_t t;
 
-  ag_d::var_t x = t.new_variable(2.0, true);
-  ag_d::var_t y = t.new_variable(3.0, true);
-  ag_d::var_t z = t.new_variable(5.0, true);
+  auto var = [&](ag_d::value_t v, bool requires_grad = false) {
+    return t.new_variable(v, requires_grad);
+  };
+
+  ag_d::var_t x = var(2.0, true);
+  ag_d::var_t y = var(3.0, true);
+  ag_d::var_t z = var(5.0, true);
 
   AKS_CHECK_VARIABLE(x, 2.0);
   AKS_CHECK_VARIABLE(y, 3.0);
@@ -1579,19 +1512,13 @@ void test_22() {
     ag_d::var_t f =
         (z * (sin(x + y) + cos(x - y))) / (log(x) * tanh(y) * exp(z));
     for (size_t k = 0; k < K; ++k) {
-      t.zero_grad();
-      backward(f);
-      f = grad(z);
+      f = gradient(f, z);
     }
     for (size_t j = 0; j < J; ++j) {
-      t.zero_grad();
-      backward(f);
-      f = grad(y);
+      f = gradient(f, y);
     }
     for (size_t i = 0; i < I; ++i) {
-      t.zero_grad();
-      backward(f);
-      f = grad(x);
+      f = gradient(f, x);
     }
 
     ag_d::value_t result = f.value();
@@ -1646,19 +1573,13 @@ void test_23() {
     ag_d::var_t f =
         (((x * y) ^ ag_d::value_t(2.0)) + ((x ^ z) - (y ^ z))) / (sqrt(z - x));
     for (size_t k = 0; k < K; ++k) {
-      t.zero_grad();
-      backward(f);
-      f = grad(z);
+      f = gradient(f, z);
     }
     for (size_t j = 0; j < J; ++j) {
-      t.zero_grad();
-      backward(f);
-      f = grad(y);
+      f = gradient(f, y);
     }
     for (size_t i = 0; i < I; ++i) {
-      t.zero_grad();
-      backward(f);
-      f = grad(x);
+      f = gradient(f, x);
     }
 
     ag_d::value_t result = f.value();
@@ -1750,19 +1671,13 @@ void test_24_01() {
     ag_d::var_t f = tanh(x * tanh(sqrt(z - x)));
     ;
     for (size_t k = 0; k < K; ++k) {
-      t.zero_grad();
-      backward(f);
-      f = grad(z);
+      f = gradient(f, z);
     }
     for (size_t j = 0; j < J; ++j) {
-      t.zero_grad();
-      backward(f);
-      f = grad(y);
+      f = gradient(f, y);
     }
     for (size_t i = 0; i < I; ++i) {
-      t.zero_grad();
-      backward(f);
-      f = grad(x);
+      f = gradient(f, x);
     }
 
     ag_d::value_t result = f.value();
@@ -1807,19 +1722,13 @@ void test_24_02() {
     t.push_state();
     ag_d::var_t f = sqrt(x * exp(y - log(z)));
     for (size_t k = 0; k < K; ++k) {
-      t.zero_grad();
-      backward(f);
-      f = grad(z);
+      f = gradient(f, z);
     }
     for (size_t j = 0; j < J; ++j) {
-      t.zero_grad();
-      backward(f);
-      f = grad(y);
+      f = gradient(f, y);
     }
     for (size_t i = 0; i < I; ++i) {
-      t.zero_grad();
-      backward(f);
-      f = grad(x);
+      f = gradient(f, x);
     }
 
     ag_d::value_t result = f.value();
@@ -2008,9 +1917,7 @@ void test_26() {
   AKS_CHECK_PRINT(f.value()[1], f.value()[1], double_t(1.0));
 
   for (int i = 0; i < 1; ++i) {
-    t.zero_grad();
-    backward(f);
-    f = grad(x);
+    f = gradient(f, x);
     AKS_CHECK_PRINT(f.value()[0], f.value()[0], 0.0);
     AKS_CHECK_PRINT(f.value()[1], f.value()[1], 0.0);
   }
@@ -2047,9 +1954,7 @@ void test_27() {
     vec_t<value_type> expected = {0, -1, 0, 1, 0, -1, 0, 1, 0};
 
     for (int i = 0; i < 9; ++i) {
-      t.zero_grad();
-      backward(f);
-      f = grad(x);
+      f = gradient(f, x);
       AKS_CHECK_PRINT(f.value()[0], f.value()[0], expected[i]);
       AKS_CHECK_PRINT(f.value()[1], f.value()[1], expected[i]);
     }
@@ -2256,10 +2161,11 @@ void test_30() {
 
   ag_d::var_t f = ag_d::value_t(1.0) * relu(z);
 
-  backward(f);
+  auto [dfdx, dfdy] = gradient(f, x, y);
 
-  ag_d::var_t dfdx = grad(x);
-  ag_d::var_t dfdy = grad(y);
+  // backward(f);
+  // ag_d::var_t dfdx = grad(x);
+  // ag_d::var_t dfdy = grad(y);
 
   // AKS_PRINT(as_dot(t));
 
@@ -2404,8 +2310,7 @@ void test_33() {
     bool not_solved = (abs(fx.value()) > tolerance);
 
     if (not_solved) {
-      backward(fx);
-      y = x - (fx / grad(x));
+      y = x - (fx / gradient(fx, x));
       x.update_in_place(y.value());
     }
 
@@ -2651,10 +2556,11 @@ void test_37() {
 
     ag_d::var_t z = ((x * y) + (x * y));
 
-    backward(z);
+    auto [dfdx, dfdy] = gradient(z, x, y);
 
-    ag_d::var_t dfdx = grad(x);
-    ag_d::var_t dfdy = grad(y);
+    // backward(z);
+    // ag_d::var_t dfdx = grad(x);
+    // ag_d::var_t dfdy = grad(y);
 
     AKS_CHECK_VARIABLE(dfdx, 6.0);
     AKS_CHECK_VARIABLE(dfdy, 4.0);
