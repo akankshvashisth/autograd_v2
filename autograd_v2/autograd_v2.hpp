@@ -128,7 +128,12 @@ AKS_ENABLE_FOR_VCL_VEC_1(T) auto vec_cos(const T &v) { return vcl::cos(v); };
 
 AKS_ENABLE_FOR_VCL_VEC_1(T)
 auto vec_tanh(const T &v) {
-  return vec_for_each([](const auto x) { return std::tanh(x); }, v);
+  return vec_for_each(
+      [](const auto x) {
+        using namespace std;
+        return tanh(x);
+      },
+      v);
 }
 
 AKS_ENABLE_FOR_VCL_VEC_1(T) auto vec_exp(const T &v) { return vcl::exp(v); }
@@ -465,7 +470,7 @@ template <typename real_t> auto &grad(var_t<real_t> &n, bool safe = true) {
     assert(n.is_alive() && n.n().is_leaf());
   }
   if (!n.t().grads_.contains(n.n().idx_)) {
-    n.t().grads_[n.n().idx_] = n.t().new_variable(0.0);
+    n.t().grads_[n.n().idx_] = n.t().new_variable(real_t(0.0));
   }
   return grad_unchecked(n);
 }
@@ -586,7 +591,7 @@ template <typename real_t> struct sqrt_mix {
       return vec_sqrt(a);
     } else {
       using namespace std;
-      CHECK_NAN(std::sqrt(a));
+      CHECK_NAN(sqrt(a));
     }
   }
 
@@ -982,7 +987,7 @@ var_t<real_t> &var_t<real_t>::operator/=(var_t<real_t> const &r) {
 }
 
 template <typename real_t> var_t<real_t> var_t<real_t>::operator-() const {
-  return *this * var_t(-1.0, t_);
+  return *this * var_t(real_t(-1.0), t_);
 }
 
 template <typename real_t>
@@ -1120,7 +1125,7 @@ template <typename real_t>
 void backward_set_grad_if_not_alive(var_t<real_t> &x) {
   if (x.n().requires_grad_) {
     if (!grad_unchecked(x).is_alive()) {
-      grad_unchecked(x) = x.t().new_variable(0.0);
+      grad_unchecked(x) = x.t().new_variable(real_t(0.0));
     }
   }
 }
@@ -1370,7 +1375,7 @@ template <typename real_t> void backward(var_t<real_t> v) {
   v.t().fill_grads();
 
   if (!grad_unchecked(v).is_alive()) {
-    grad_unchecked(v) = v.t().new_variable(1.0);
+    grad_unchecked(v) = v.t().new_variable(real_t(1.0));
   }
 
   stack_t<node<real_t> *> stk;
@@ -1404,7 +1409,7 @@ template <typename real_t> void backward(var_t<real_t> v) {
     node<real_t> *n = &(v.t().nodes_[idx]);
     var_t<real_t> n_ = {&v.t(), n};
     if (!grad_unchecked(n_).is_alive()) {
-      grad_unchecked(n_) = v.t().new_variable(0.0);
+      grad_unchecked(n_) = v.t().new_variable(real_t(0.0));
     }
     backward_impl(&n_.t(), &n_.n());
   }

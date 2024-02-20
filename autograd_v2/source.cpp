@@ -390,6 +390,137 @@ struct optimizer_adam {
 };
 } // namespace
 
+namespace dual_numbers {
+struct dual {
+  explicit dual(double_t value = 0.0, double_t grad = 0.0)
+      : value_(value), grad_(grad) {}
+
+  double_t value() const { return value_; }
+  double_t grad() const { return grad_; }
+
+  double_t value_ = 0;
+  double_t grad_ = 0;
+};
+
+dual operator+(dual const &a, dual const &b) {
+  dual ret;
+  ret.value_ = a.value_ + b.value_;
+  ret.grad_ = a.grad_ + b.grad_;
+  return ret;
+}
+
+dual operator-(dual const &a, dual const &b) {
+  dual ret;
+  ret.value_ = a.value_ - b.value_;
+  ret.grad_ = a.grad_ - b.grad_;
+  return ret;
+}
+
+dual operator*(dual const &a, dual const &b) {
+  dual ret;
+  ret.value_ = a.value_ * b.value_;
+  ret.grad_ = a.value_ * b.grad_ + a.grad_ * b.value_;
+  return ret;
+}
+
+dual operator/(dual const &a, dual const &b) {
+  dual ret;
+  ret.value_ = a.value_ / b.value_;
+  ret.grad_ = (a.grad_ * b.value_ - a.value_ * b.grad_) / (b.value_ * b.value_);
+  return ret;
+}
+
+dual operator-(dual const &a) {
+  dual ret;
+  ret.value_ = -a.value_;
+  ret.grad_ = -a.grad_;
+  return ret;
+}
+
+dual &operator+=(dual &a, dual const &b) {
+  a = a + b;
+  return a;
+}
+
+dual &operator-=(dual &a, dual const &b) {
+  a = a - b;
+  return a;
+}
+
+dual &operator*=(dual &a, dual const &b) {
+  a = a * b;
+  return a;
+}
+
+dual &operator/=(dual &a, dual const &b) {
+  a = a / b;
+  return a;
+}
+
+dual sin(dual const &a) {
+  dual ret;
+  ret.value_ = std::sin(a.value_);
+  ret.grad_ = std::cos(a.value_) * a.grad_;
+  return ret;
+}
+
+dual cos(dual const &a) {
+  dual ret;
+  ret.value_ = std::cos(a.value_);
+  ret.grad_ = -std::sin(a.value_) * a.grad_;
+  return ret;
+}
+
+dual tanh(dual const &a) {
+  dual ret;
+  ret.value_ = std::tanh(a.value_);
+  ret.grad_ = 1 - ret.value_ * ret.value_;
+  return ret;
+}
+
+dual relu(dual const &a) {
+  dual ret;
+  ret.value_ = a.value_ > 0 ? a.value_ : 0;
+  ret.grad_ = a.grad_ * (a.value_ > 0);
+  return ret;
+}
+
+dual exp(dual const &a) {
+  dual ret;
+  ret.value_ = std::exp(a.value_);
+  ret.grad_ = ret.value_ * a.grad_;
+  return ret;
+}
+
+dual log(dual const &a) {
+  dual ret;
+  using namespace std;
+  ret.value_ = std::log(a.value_);
+  ret.grad_ = 1.0 / a.value_ * a.grad_;
+  return ret;
+}
+
+dual sqrt(dual const &a) {
+  dual ret;
+  using namespace std;
+  ret.value_ = std::sqrt(a.value_);
+  ret.grad_ = 0.5 / ret.value_ * a.grad_;
+  return ret;
+}
+
+dual pow(dual const &a, dual const &b) {
+  dual ret;
+  ret.value_ = std::pow(a.value_, b.value_);
+  ret.grad_ = b.value_ * std::pow(a.value_, b.value_ - 1.) * a.grad_;
+  return ret;
+}
+
+std::ostream &operator<<(std::ostream &os, dual const &a) {
+  os << std::setprecision(15) << "dual(" << a.value_ << ", " << a.grad_ << ")";
+  return os;
+}
+} // namespace dual_numbers
+
 namespace {
 
 void test_01() {
@@ -2912,6 +3043,71 @@ void test_41() {
   }
 }
 
+void test_42() {
+  std::cout << "\ntest_42" << std::endl;
+
+  using dual = dual_numbers::dual;
+  using ag = autograd_traits<dual>;
+
+  ag::tape_t tape;
+
+  auto var = [&](ag::value_t v, bool requires_grad = false) {
+    return tape.new_variable(v, requires_grad);
+  };
+
+  ag::var_t x = var(dual(1.0, 1.0), true);
+  ag::var_t y = var(dual(2.0), true);
+
+  {
+    ag::tape_context_t context(tape);
+    ag::var_t f = x * x * x * y;
+
+    AKS_CHECK_EQUAL(x.value().value(), 1.0);
+    AKS_CHECK_EQUAL(f.value().value(), 2.0);
+
+    ag::var_t dfdx = gradient(f, x);
+
+    AKS_CHECK_EQUAL(f.value().grad(), 6.0);
+    AKS_CHECK_EQUAL(dfdx.value().value(), f.value().grad());
+
+    ag::var_t d2fdx2 = gradient(dfdx, x);
+
+    AKS_CHECK_EQUAL(dfdx.value().grad(), 12.0);
+    AKS_CHECK_EQUAL(d2fdx2.value().value(), dfdx.value().grad());
+
+    ag::var_t d3fdx3 = gradient(d2fdx2, x);
+
+    AKS_CHECK_EQUAL(d2fdx2.value().grad(), 12.0);
+    AKS_CHECK_EQUAL(d3fdx3.value().value(), d2fdx2.value().grad());
+
+    AKS_CHECK_EQUAL(d3fdx3.value().grad(), 0.0);
+  }
+  {
+    ag::tape_context_t context(tape);
+    ag::var_t f = pow(x, dual(3.0)) * y;
+
+    AKS_CHECK_EQUAL(x.value().value(), 1.0);
+    AKS_CHECK_EQUAL(f.value().value(), 2.0);
+
+    ag::var_t dfdx = gradient(f, x);
+
+    AKS_CHECK_EQUAL(f.value().grad(), 6.0);
+    AKS_CHECK_EQUAL(dfdx.value().value(), f.value().grad());
+
+    ag::var_t d2fdx2 = gradient(dfdx, x);
+
+    AKS_CHECK_EQUAL(dfdx.value().grad(), 12.0);
+    AKS_CHECK_EQUAL(d2fdx2.value().value(), dfdx.value().grad());
+
+    ag::var_t d3fdx3 = gradient(d2fdx2, x);
+
+    AKS_CHECK_EQUAL(d2fdx2.value().grad(), 12.0);
+    AKS_CHECK_EQUAL(d3fdx3.value().value(), d2fdx2.value().grad());
+
+    AKS_CHECK_EQUAL(d3fdx3.value().grad(), 0.0);
+  }
+}
+
 void pinn_01(unsigned long long seed) {
   std::cout << "pinn_01\n";
 
@@ -3345,6 +3541,7 @@ int main_tests() {
 int main() {
   // pinn_01(1987);
   // pinn_02(1987);
+  test_42();
   main_tests();
   return 0;
 }
