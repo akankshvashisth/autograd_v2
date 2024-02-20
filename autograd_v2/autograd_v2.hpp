@@ -1583,3 +1583,146 @@ inline std::string as_dot(tape_t<real_t> &t, size_t start_count = 0) {
   return ss.str();
 }
 } // namespace aks
+
+namespace std {
+template <typename real_t> struct hash<aks::var_t<real_t>> {
+  size_t operator()(const aks::var_t<real_t> &v) const {
+    return std::hash<aks::idx_t>()(v.n().idx_);
+  }
+};
+
+template <typename real_t> struct equal_to<aks::var_t<real_t>> {
+  size_t operator()(const aks::var_t<real_t> &v,
+                    const aks::var_t<real_t> &w) const {
+    return v.n().idx_ == w.n().idx_;
+  }
+};
+} // namespace std
+
+namespace aks {
+template <typename real_t>
+aks::vec_t<aks::var_t<real_t>> put_on_tape(aks::tape_t<real_t> *tape,
+                                           aks::vec_t<real_t> const &xs,
+                                           bool requires_grad = false) {
+  aks::vec_t<aks::var_t<real_t>> ret;
+  ret.reserve(xs.size());
+  for (auto const &x : xs) {
+    ret.push_back(tape->new_variable(x, requires_grad));
+  }
+  return ret;
+}
+
+template <typename real_t>
+aks::vec_t<real_t> get_values(aks::vec_t<aks::var_t<real_t>> const &xs) {
+  aks::vec_t<real_t> ret;
+  ret.reserve(xs.size());
+  for (auto const &x : xs) {
+    assert(x.is_alive());
+    ret.push_back(x.value());
+  }
+  return ret;
+}
+
+template <typename real_t>
+aks::vec_t<aks::var_t<real_t>>
+get_grads(aks::vec_t<aks::var_t<real_t>> const &xs) {
+  aks::vec_t<aks::var_t<real_t>> ret;
+  ret.reserve(xs.size());
+  for (auto const &x : xs) {
+    assert(x.is_alive());
+    assert(x.requires_grad());
+    ret.push_back(aks::grad(x));
+  }
+  return ret;
+}
+
+template <typename real_t>
+aks::map_t<aks::var_t<real_t>, aks::var_t<real_t>>
+get_grads_map(aks::vec_t<aks::var_t<real_t>> const &xs) {
+  aks::map_t<aks::var_t<real_t>, aks::var_t<real_t>> ret;
+  ret.reserve(xs.size());
+  for (auto const &x : xs) {
+    assert(x.is_alive());
+    assert(x.requires_grad());
+    ret[x] = aks::grad(x);
+  }
+  return ret;
+}
+
+template <typename real_t, typename... var_ts>
+auto get_grads(aks::var_t<real_t> x, var_ts... xs) {
+  return std::make_tuple(aks::grad(x), aks::grad(xs)...);
+}
+
+template <typename real_t> void build_gradients(aks::var_t<real_t> f) {
+  assert(f.is_alive());
+  assert(f.requires_grad());
+  f.t().zero_grad();
+  aks::backward(f);
+}
+
+template <typename real_t>
+aks::var_t<real_t> gradient(aks::var_t<real_t> f, aks::var_t<real_t> x) {
+  build_gradients(f);
+  return aks::grad(x);
+}
+
+template <typename real_t, typename... vars>
+auto gradient(aks::var_t<real_t> f, aks::var_t<real_t> x, vars... xs) {
+  build_gradients(f);
+  return get_grads(x, xs...);
+}
+
+template <typename real_t>
+aks::vec_t<aks::var_t<real_t>>
+gradient(aks::var_t<real_t> f, aks::vec_t<aks::var_t<real_t>> const &xs) {
+  build_gradients(f);
+  return get_grads(xs);
+}
+
+template <typename real_t>
+aks::vec_t<aks::vec_t<aks::var_t<real_t>>>
+gradient(aks::var_t<real_t> f,
+         aks::vec_t<aks::vec_t<aks::var_t<real_t>>> const &xss) {
+  build_gradients(f);
+  aks::vec_t<aks::vec_t<aks::var_t<real_t>>> ret;
+  ret.reserve(xss.size());
+  for (auto const &xs : xss) {
+    ret.emplace_back(get_grads(xs));
+  }
+  return ret;
+}
+
+template <typename real_t>
+aks::vec_t<aks::var_t<real_t>>
+gradient(aks::vec_t<aks::var_t<real_t>> const &fs,
+         aks::vec_t<aks::var_t<real_t>> const &xs) {
+  aks::vec_t<aks::var_t<real_t>> ret;
+  ret.reserve(fs.size());
+  assert(fs.size() == xs.size());
+  for (size_t i = 0; i < fs.size(); ++i) {
+    ret.push_back(gradient(fs[i], xs[i]));
+  }
+  return ret;
+}
+
+template <typename real_t>
+aks::map_t<aks::var_t<real_t>, aks::var_t<real_t>>
+gradient_map(aks::var_t<real_t> f, aks::vec_t<aks::var_t<real_t>> const &xs) {
+  build_gradients(f);
+  return get_grads_map(xs);
+}
+
+template <typename real_t>
+aks::map_t<aks::var_t<real_t>, aks::var_t<real_t>>
+gradient_map(aks::vec_t<aks::var_t<real_t>> const &fs,
+             aks::vec_t<aks::var_t<real_t>> const &xs) {
+  aks::map_t<aks::var_t<real_t>, aks::var_t<real_t>> ret;
+
+  assert(fs.size() == xs.size());
+  for (size_t i = 0; i < fs.size(); ++i) {
+    ret[xs[i]] = gradient(fs[i], xs[i]);
+  }
+  return ret;
+}
+} // namespace aks
