@@ -1,4 +1,4 @@
-# autograd_v2
+# autograd_from_scratch
 
 for tests/examples/features/possibilities, see:     
 
