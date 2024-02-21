@@ -23,7 +23,7 @@ template <typename value_type> struct autograd_traits {
 };
 
 using ag_d = autograd_traits<double_t>;
-// using ag_d = autograd_traits<vcl::Vec2d>;
+// using ag_d = autograd_traits<vcl::Vec2d>; // 3 fail, minor difference
 using ag_f = autograd_traits<float_t>;
 
 constexpr bool QUIET_PASS = true;
@@ -87,16 +87,16 @@ static size_t TOTAL_TEST_FAIL = 0;
 #define AKS_CHECK_VALUES(RESULT, EXPECTED)                                     \
   do {                                                                         \
     AKS_CHECK_TRUE(RESULT.size() == EXPECTED.size());                          \
-    for (size_t i = 0; i < RESULT.size(); ++i) {                               \
-      AKS_CHECK_VALUE(RESULT[i], EXPECTED[i]);                                 \
+    for (size_t i__xxx = 0; i__xxx < RESULT.size(); ++i__xxx) {                \
+      AKS_CHECK_VALUE(RESULT[i__xxx], EXPECTED[i__xxx]);                       \
     }                                                                          \
   } while (false)
 
 #define AKS_CHECK_VARIABLES(RESULT, EXPECTED)                                  \
   do {                                                                         \
     AKS_CHECK_TRUE(RESULT.size() == EXPECTED.size());                          \
-    for (size_t i = 0; i < RESULT.size(); ++i) {                               \
-      AKS_CHECK_VALUE(RESULT[i].value(), EXPECTED[i]);                         \
+    for (size_t i__xxx = 0; i__xxx < RESULT.size(); ++i__xxx) {                \
+      AKS_CHECK_VALUE(RESULT[i__xxx].value(), EXPECTED[i__xxx]);               \
     }                                                                          \
   } while (false)
 
@@ -3269,6 +3269,120 @@ void test_43() {
 #endif
 }
 
+void test_44() {
+  std::cout << "\ntest_44" << std::endl;
+
+  using namespace aks;
+
+  ag_d::tape_t tape;
+
+  auto var = [&](ag_d::value_t v, bool requires_grad = false) {
+    return tape.new_variable(v, requires_grad);
+  };
+
+  auto to_tape = [&](ag_d::vec_value_t const &vs, bool requires_grad = false) {
+    return put_on_tape(&tape, vs, requires_grad);
+  };
+
+  {
+    ag_d::tape_context_t context(tape);
+
+    auto x = var(2.0, true);
+    auto y = var(3.0, true);
+    auto z = var(5.0, true);
+
+    auto f = x * y * z;
+
+    auto [dfdx, dfdy, dfdz] = jacobian(f, x, y, z);
+
+    AKS_CHECK_EQUAL(f.value(), 30.0);
+    AKS_CHECK_EQUAL(dfdx.value(), 15.0);
+    AKS_CHECK_EQUAL(dfdy.value(), 10.0);
+    AKS_CHECK_EQUAL(dfdz.value(), 6.0);
+  }
+
+  {
+    ag_d::tape_context_t context(tape);
+
+    ag_d::vec_value_t const xs_v = {2.0, 3.0, 5.0};
+    ag_d::vec_value_t const jac_v = {15.0, 10.0, 6.0};
+
+    auto xs = to_tape(xs_v, true);
+
+    auto f = xs[0] * xs[1] * xs[2];
+
+    auto jac = jacobian(f, xs);
+
+    AKS_CHECK_EQUAL(f.value(), 30.0);
+    AKS_CHECK_EQUAL(as_values(f), 30.0);
+
+    AKS_CHECK_EQUAL(jac[0].value(), 15.0);
+    AKS_CHECK_EQUAL(jac[1].value(), 10.0);
+    AKS_CHECK_EQUAL(jac[2].value(), 6.0);
+    AKS_CHECK_VALUES(as_values(jac), jac_v);
+  }
+  {
+    ag_d::tape_context_t context(tape);
+
+    ag_d::vec_value_t const xs_v = {2.0, 3.0, 5.0};
+    ag_d::vec_value_t const jac_v = {900, 600, 360};
+
+    auto xs = to_tape(xs_v, true);
+
+    auto f = (xs[0] ^ ag_d::value_t(2.0)) * (xs[1] ^ ag_d::value_t(2.0)) *
+             (xs[2] ^ ag_d::value_t(2.0));
+
+    auto jac = jacobian(f, xs);
+
+    AKS_CHECK_VALUES(as_values(jac), jac_v);
+  }
+  {
+    ag_d::tape_context_t context(tape);
+
+    ag_d::vec_value_t const xs_v = {2.0, 3.0, 5.0};
+    ag_d::vec_vec_value_t const hess_v = {
+        {450, 600, 360}, {600, 200, 240}, {360, 240, 72}};
+
+    auto xs = to_tape(xs_v, true);
+
+    auto f = (xs[0] ^ ag_d::value_t(2.0)) * (xs[1] ^ ag_d::value_t(2.0)) *
+             (xs[2] ^ ag_d::value_t(2.0));
+
+    auto hess = hessian_slow(f, xs);
+
+    auto hess_values = as_values(hess);
+
+    for (size_t i = 0; i < xs.size(); ++i) {
+      AKS_CHECK_VARIABLES(hess[i], hess_v[i]);
+    }
+
+    AKS_CHECK_EQUAL(tape.nodes_.size(), 229);
+  }
+
+  {
+    ag_d::tape_context_t context(tape);
+
+    ag_d::vec_value_t const xs_v = {2.0, 3.0, 5.0};
+    ag_d::vec_vec_value_t const hess_v = {
+        {450, 600, 360}, {600, 200, 240}, {360, 240, 72}};
+
+    auto xs = to_tape(xs_v, true);
+
+    auto f = (xs[0] ^ ag_d::value_t(2.0)) * (xs[1] ^ ag_d::value_t(2.0)) *
+             (xs[2] ^ ag_d::value_t(2.0));
+
+    auto hess = hessian(f, xs);
+
+    auto hess_values = as_values(hess);
+
+    for (size_t i = 0; i < xs.size(); ++i) {
+      AKS_CHECK_VARIABLES(hess[i], hess_v[i]);
+    }
+
+    AKS_CHECK_EQUAL(tape.nodes_.size(), 163);
+  }
+}
+
 void pinn_01(unsigned long long seed) {
   std::cout << "pinn_01\n";
 
@@ -3646,6 +3760,7 @@ void pinn_02(unsigned long long seed) {
 }
 
 int main_tests() {
+  test_44();
   test_43();
   test_42();
   test_41();
