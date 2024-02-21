@@ -1424,9 +1424,14 @@ namespace aks {
 template <typename real_t>
 std::ostream &operator<<(std::ostream &o, var_t<real_t> const &vs) {
   using namespace vcl_detail;
-  o << std::setprecision(15) << "var_t(" << vs.value() << ";"
-    << (vs.n().backwards_.n_ ? vs.n().backwards_.n_ : "null") << ";"
-    << vs.t().nodes_.size() << ")";
+  if (vs.is_alive()) {
+    o << std::setprecision(15) << "var_t(" << vs.value() << ";"
+      << (vs.requires_grad() ? "requires_grad;" : "")
+      << (vs.n().backwards_.n_ ? vs.n().backwards_.n_ : "null") << ";"
+      << vs.t().nodes_.size() << ")";
+  } else {
+    o << "var_t(null)";
+  }
   return o;
 }
 
@@ -1695,6 +1700,16 @@ vec_t<vec_t<var_t<real_t>>> gradient(var_t<real_t> f,
 }
 
 template <typename real_t>
+vec_t<var_t<real_t>> gradient(vec_t<var_t<real_t>> fs, var_t<real_t> const &x) {
+  vec_t<var_t<real_t>> ret;
+  ret.reserve(fs.size());
+  for (auto const &f : fs) {
+    ret.push_back(gradient(f, x));
+  }
+  return ret;
+}
+
+template <typename real_t>
 vec_t<var_t<real_t>> gradient(vec_t<var_t<real_t>> const &fs,
                               vec_t<var_t<real_t>> const &xs) {
   vec_t<var_t<real_t>> ret;
@@ -1741,6 +1756,68 @@ var_t<real_t> higher_order_gradient(
     f = higher_order_gradient(f, x, order);
   }
   return f;
+}
+
+template <typename real_t> real_t as_values(var_t<real_t> x) {
+  return x.value();
+}
+
+template <typename real_t>
+vec_t<real_t> as_values(vec_t<var_t<real_t>> const &xs) {
+  auto vals = [](var_t<real_t> const &x) { return as_values(x); };
+  return zipped_op(vals, xs);
+}
+
+template <typename real_t>
+vec_t<vec_t<real_t>> as_values(vec_t<vec_t<var_t<real_t>>> const &xs) {
+  auto vals = [](vec_t<var_t<real_t>> const &xs) { return as_values(xs); };
+  return zipped_op(vals, xs);
+}
+
+template <typename real_t, typename... vars>
+auto jacobian(var_t<real_t> f, var_t<real_t> x, vars... xs) {
+  return gradient(f, x, xs...);
+}
+
+template <typename real_t>
+vec_t<var_t<real_t>> jacobian(var_t<real_t> f, vec_t<var_t<real_t>> const &xs) {
+  return gradient(f, xs);
+}
+
+template <typename real_t>
+vec_t<vec_t<var_t<real_t>>> hessian_slow(var_t<real_t> f,
+                                         vec_t<var_t<real_t>> const &xs) {
+  vec_t<var_t<real_t>> jac = jacobian(f, xs);
+  vec_t<vec_t<var_t<real_t>>> hes;
+  hes.reserve(xs.size());
+  for (auto const &x : xs) {
+    hes.emplace_back(gradient(jac, x));
+  }
+  return hes;
+}
+
+template <typename real_t>
+vec_t<vec_t<var_t<real_t>>> hessian(var_t<real_t> f,
+                                    vec_t<var_t<real_t>> const &xs) {
+  vec_t<var_t<real_t>> jac = jacobian(f, xs);
+  vec_t<vec_t<var_t<real_t>>> hes;
+  hes.reserve(xs.size());
+  for (size_t i = 0; i < xs.size(); ++i) {
+    vec_t<var_t<real_t>> sub_jac(jac.begin(), jac.begin() + i + 1);
+    vec_t<var_t<real_t>> sub_hes = gradient(sub_jac, xs[i]);
+    sub_hes.resize(jac.size());
+    hes.emplace_back(sub_hes);
+  }
+
+  for (size_t i = 0; i < xs.size(); ++i) {
+    for (size_t j = 0; j < xs.size(); ++j) {
+      if (i == j) {
+        continue;
+      }
+      hes[i][j] = hes[j][i];
+    }
+  }
+  return hes;
 }
 
 } // namespace aks
